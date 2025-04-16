@@ -1,0 +1,254 @@
+version: '3.8'
+
+services:
+  # API Gateway service
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - NODE_ENV=production
+      - BATCH_SERVICE_URL=http://batch-service:3002
+      - SEARCH_SERVICE_URL=http://search-service:3003
+      - ANALYTICS_SERVICE_URL=http://analytics-service:3004
+      - CONFIG_SERVICE_URL=http://config-service:3005
+      - WORKFLOW_SERVICE_URL=http://workflow-service:3006
+      - MESSAGING_SERVICE_URL=http://messaging-service:3007
+      - PERSON_CONNECT_URL=http://person-connect:3008
+      - MCP_SERVICE_URL=http://mcp-service:3009
+      - AUTH_SERVICE_URL=http://auth-service:3010
+      - FHIR_SERVICE_URL=http://fhir-service:3011
+      - SERVICE_MGMT_URL=http://service-mgmt:3012
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3013
+      - AUDIT_SERVICE_URL=http://audit-service:3014
+    depends_on:
+      - batch-service
+      - search-service
+      - analytics-service
+      - config-service
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Batch Processing Service
+  batch-service:
+    build:
+      context: ./batch-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+    volumes:
+      - batch_data:/app/data
+
+  # Search Service
+  search-service:
+    build:
+      context: ./search-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3003
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Analytics Service
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3004
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Configuration Management Service
+  config-service:
+    build:
+      context: ./config-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3005
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Workflow Engine Service
+  workflow-service:
+    build:
+      context: ./workflow-engine
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3006
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Messaging Service
+  messaging-service:
+    build:
+      context: ./messaging-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3007
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Person Connect Service
+  person-connect:
+    build:
+      context: ./person-connect
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3008
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Model Context Protocol (MCP) Service
+  mcp-service:
+    build:
+      context: ./mcp-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3009
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3010
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # FHIR Service
+  fhir-service:
+    build:
+      context: ./fhir-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3011
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Service Management
+  service-mgmt:
+    build:
+      context: ./service-mgmt
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3012
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3013
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Audit Service
+  audit-service:
+    build:
+      context: ./audit-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3014
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Redis for caching and messaging
+  redis:
+    image: redis:alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - shh_network
+    restart: unless-stopped
+
+  # Elasticsearch for search service
+  elasticsearch:
+    image: elasticsearch:8.6.1
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - shh_network
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+networks:
+  shh_network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  batch_data:
+    driver: local

@@ -1,473 +1,792 @@
 /**
- * Observability Client
+ * Audit Service Client
  * 
- * Client library for integrating applications with the observability infrastructure.
- * This provides simplified interfaces for:
- * - Distributed tracing
- * - Structured logging
- * - Metrics reporting
- * - Health checks
- * 
- * Usage:
- * ```
- * import { ObservabilityClient } from '@healthcare/observability';
- * 
- * const client = new ObservabilityClient({
- *   serviceName: 'patient-service',
- *   serviceVersion: '1.0.0'
- * });
- * 
- * // Create a span for an operation
- * client.withSpan('process-patient-data', async (span) => {
- *   // Add context to the span
- *   span.setAttribute('patientId', patientId);
- *   
- *   // Your operation code here
- *   const result = await processPatient(patientId);
- *   
- *   // Record success metrics
- *   client.incrementCounter('patients_processed');
- *   
- *   return result;
- * });
- * 
- * // Log structured information
- * client.info('Patient data processed successfully', { 
- *   patientId, 
- *   processingTime 
- * });
- * ```
+ * This client library provides an easy-to-use interface for services to integrate
+ * with the Audit Service for logging activities, data access, and changes for 
+ * compliance and security purposes.
  */
 
-import { Span, SpanKind, SpanStatusCode } from '@opentelemetry/api';
-import axios from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  AUDIT_RESOURCE_TYPES,
+  AUDIT_ACTIONS,
+  AUDIT_STATUSES,
+  InsertAuditEvent,
+  InsertAuditDataChange,
+  InsertAuditAccess,
+  AuditClientConfig
+} from '../../shared/audit-schema';
 
 /**
- * Client configuration
+ * Audit Service Client
  */
-export interface ObservabilityClientConfig {
-  /**
-   * Service name
-   */
-  serviceName: string;
+export class AuditClient {
+  private client: AxiosInstance;
+  private serviceName: string;
+  private readonly DEFAULT_TIMEOUT = 5000; // 5 seconds
+  private readonly MAX_RETRIES = 3;
   
   /**
-   * Service version
+   * Create a new Audit Client
    */
-  serviceVersion: string;
-  
-  /**
-   * Observability service URL
-   * - If undefined, defaults to localhost:4000
-   * - If null, external reporting is disabled (local-only mode)
-   */
-  observabilityUrl?: string | null;
-  
-  /**
-   * Additional context for all telemetry
-   */
-  defaultContext?: Record<string, any>;
-  
-  /**
-   * Enable/disable components
-   */
-  enabled?: {
-    /**
-     * Enable tracing
-     */
-    tracing?: boolean;
-    
-    /**
-     * Enable logging
-     */
-    logging?: boolean;
-    
-    /**
-     * Enable metrics
-     */
-    metrics?: boolean;
-  };
-}
-
-/**
- * Log levels
- */
-export enum LogLevel {
-  ERROR = 'error',
-  WARN = 'warn',
-  INFO = 'info',
-  DEBUG = 'debug'
-}
-
-/**
- * Simplified span interface for consumers
- */
-export interface SimpleSpan {
-  /**
-   * Set an attribute on the span
-   */
-  setAttribute(key: string, value: string | number | boolean): SimpleSpan;
-  
-  /**
-   * Record an error
-   */
-  recordError(error: Error): SimpleSpan;
-  
-  /**
-   * Add an event to the span
-   */
-  addEvent(name: string, attributes?: Record<string, any>): SimpleSpan;
-  
-  /**
-   * Set span status
-   */
-  setStatus(status: 'ok' | 'error', message?: string): SimpleSpan;
-  
-  /**
-   * Get trace ID (for correlation with logs)
-   */
-  getTraceId(): string;
-  
-  /**
-   * Get span ID
-   */
-  getSpanId(): string;
-}
-
-/**
- * Metric types
- */
-export enum MetricType {
-  COUNTER = 'counter',
-  GAUGE = 'gauge',
-  HISTOGRAM = 'histogram'
-}
-
-/**
- * Main client class for observability
- */
-export class ObservabilityClient {
-  private readonly config: ObservabilityClientConfig;
-  private readonly metricCache: Map<string, any> = new Map();
-  
-  constructor(config: ObservabilityClientConfig) {
-    this.config = {
-      ...config,
-      // If observabilityUrl is explicitly null, keep it as null to disable external reporting
-      observabilityUrl: config.observabilityUrl === null 
-        ? null 
-        : (config.observabilityUrl || 'http://localhost:4000'),
-      enabled: {
-        tracing: true,
-        logging: true,
-        metrics: true,
-        ...config.enabled
+  constructor(config: AuditClientConfig) {
+    const axiosConfig: AxiosRequestConfig = {
+      baseURL: config.baseURL,
+      timeout: config.timeout || this.DEFAULT_TIMEOUT,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Service-Name': config.serviceName,
+        ...(config.headers || {})
       }
     };
     
-    const externalReporting = this.config.observabilityUrl ? 'enabled' : 'disabled (local only)';
-    console.log(`Observability client initialized for service: ${this.config.serviceName} v${this.config.serviceVersion} - External reporting ${externalReporting}`);
-  }
-  
-  /**
-   * Run an operation within a new span
-   */
-  async withSpan<T>(
-    name: string, 
-    operation: (span: SimpleSpan) => Promise<T>, 
-    options?: {
-      kind?: SpanKind;
-      attributes?: Record<string, any>;
-      parentSpan?: Span;
-    }
-  ): Promise<T> {
-    if (!this.config.enabled?.tracing) {
-      // Tracing disabled, run operation directly
-      return await operation(this.createNoOpSpan());
-    }
+    this.client = axios.create(axiosConfig);
+    this.serviceName = config.serviceName;
     
-    // In a real implementation, this would use OpenTelemetry to create a span
-    // For now, we'll create a simple wrapper
-    const startTime = Date.now();
-    const traceId = this.generateId();
-    const spanId = this.generateId();
-    
-    // Create a simplified span
-    const span: SimpleSpan = {
-      setAttribute: (key, value) => {
-        console.debug(`[TRACE] ${traceId}:${spanId} setAttribute: ${key}=${value}`);
-        return span;
-      },
-      recordError: (error) => {
-        console.error(`[TRACE] ${traceId}:${spanId} recordError: ${error.message}`);
-        return span;
-      },
-      addEvent: (name, attributes) => {
-        console.debug(`[TRACE] ${traceId}:${spanId} event: ${name}`, attributes);
-        return span;
-      },
-      setStatus: (status, message) => {
-        console.debug(`[TRACE] ${traceId}:${spanId} status: ${status} ${message || ''}`);
-        return span;
-      },
-      getTraceId: () => traceId,
-      getSpanId: () => spanId
-    };
-    
-    // Set initial attributes
-    const attributes = {
-      ...this.config.defaultContext,
-      ...options?.attributes,
-      'service.name': this.config.serviceName,
-      'service.version': this.config.serviceVersion
-    };
-    
-    Object.entries(attributes).forEach(([key, value]) => {
-      span.setAttribute(key, value as any);
-    });
-    
-    try {
-      // Run the operation
-      const result = await operation(span);
-      
-      // End span successfully
-      span.setStatus('ok');
-      return result;
-    } catch (err) {
-      // Record error and re-throw
-      span.setStatus('error', (err as Error).message);
-      span.recordError(err as Error);
-      throw err;
-    } finally {
-      // Record span duration
-      const duration = Date.now() - startTime;
-      console.debug(`[TRACE] ${traceId}:${spanId} completed in ${duration}ms`);
-      
-      // In a real implementation, we would report this span
-      this.reportSpan(name, {
-        traceId,
-        spanId,
-        duration,
-        attributes
-      }).catch(e => console.error('Failed to report span:', e));
+    // Setup retry mechanism if enabled
+    if (config.retry !== false) {
+      this.setupRetry(config.maxRetries || this.MAX_RETRIES);
     }
   }
   
   /**
-   * Log at ERROR level
+   * Setup retry mechanism for failed requests
    */
-  error(message: string, error?: Error, context?: Record<string, any>): void {
-    this.log(LogLevel.ERROR, message, {
-      ...context,
-      error: error?.message,
-      stack: error?.stack
+  private setupRetry(maxRetries: number): void {
+    this.client.interceptors.response.use(undefined, async (error: AxiosError) => {
+      const config = error.config;
+      
+      // Add retry count to config if not present
+      if (!config || !config.headers) {
+        return Promise.reject(error);
+      }
+      
+      const retryCount = config.headers['x-retry-count'] ? 
+        parseInt(config.headers['x-retry-count'] as string) : 0;
+      
+      // Check if we should retry the request
+      if (retryCount < maxRetries) {
+        // Exponential backoff
+        const delayMs = Math.pow(2, retryCount) * 100;
+        
+        // Update retry count
+        config.headers['x-retry-count'] = (retryCount + 1).toString();
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        
+        // Retry the request
+        return this.client(config);
+      }
+      
+      // Max retries reached, reject with original error
+      return Promise.reject(error);
     });
   }
   
   /**
-   * Log at WARN level
+   * Log an audit event
+   * 
+   * @param resourceType Type of resource being audited (patient, user, etc.)
+   * @param resourceId Identifier of the resource being audited
+   * @param action Action performed (create, read, update, delete, etc.)
+   * @param status Outcome status (success, failure, etc.)
+   * @param description Human-readable description of the event
+   * @param context Additional context (userId, username, etc.)
+   * @returns The created audit event
    */
-  warn(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.WARN, message, context);
-  }
-  
-  /**
-   * Log at INFO level
-   */
-  info(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.INFO, message, context);
-  }
-  
-  /**
-   * Log at DEBUG level
-   */
-  debug(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.DEBUG, message, context);
-  }
-  
-  /**
-   * Increment a counter metric
-   */
-  incrementCounter(name: string, value: number = 1, labels: Record<string, string> = {}): void {
-    if (!this.config.enabled?.metrics) return;
-    
-    this.reportMetric(MetricType.COUNTER, name, value, labels)
-      .catch(e => console.error(`Failed to report counter metric ${name}:`, e));
-  }
-  
-  /**
-   * Set a gauge metric
-   */
-  setGauge(name: string, value: number, labels: Record<string, string> = {}): void {
-    if (!this.config.enabled?.metrics) return;
-    
-    this.reportMetric(MetricType.GAUGE, name, value, labels)
-      .catch(e => console.error(`Failed to report gauge metric ${name}:`, e));
-  }
-  
-  /**
-   * Record a value in a histogram
-   */
-  recordHistogram(name: string, value: number, labels: Record<string, string> = {}): void {
-    if (!this.config.enabled?.metrics) return;
-    
-    this.reportMetric(MetricType.HISTOGRAM, name, value, labels)
-      .catch(e => console.error(`Failed to report histogram metric ${name}:`, e));
-  }
-  
-  /**
-   * Record timing for an operation
-   */
-  async recordTiming<T>(
-    name: string, 
-    operation: () => Promise<T>, 
-    labels: Record<string, string> = {}
-  ): Promise<T> {
-    const start = Date.now();
-    try {
-      return await operation();
-    } finally {
-      const duration = Date.now() - start;
-      this.recordHistogram(name, duration, labels);
-    }
-  }
-  
-  /**
-   * Check health of the observability service
-   */
-  async checkHealth(): Promise<{
-    status: 'ok' | 'degraded' | 'error';
-    components: Record<string, any>;
-  }> {
-    // If observabilityUrl is null, external service is disabled by design
-    if (!this.config.observabilityUrl) {
-      return {
-        status: 'ok',
-        components: {
-          external: 'disabled',
-          local: 'active'
-        }
-      };
+  async auditEvent(
+    resourceType: string,
+    resourceId: string | null,
+    action: string,
+    status: string,
+    description: string,
+    context: {
+      userId?: number;
+      username?: string;
+      ipAddress?: string;
+      sessionId?: string;
+      organizationId?: number;
+      metadata?: Record<string, any>;
+      requestId?: string;
+      retain?: boolean;
+    } = {}
+  ): Promise<any> {
+    // Validate resource type and action
+    if (!AUDIT_RESOURCE_TYPES.includes(resourceType) && !resourceType.startsWith('custom:')) {
+      throw new Error(`Invalid resource type: ${resourceType}`);
     }
     
+    if (!AUDIT_ACTIONS.includes(action) && !action.startsWith('custom:')) {
+      throw new Error(`Invalid action: ${action}`);
+    }
+    
+    if (!AUDIT_STATUSES.includes(status)) {
+      throw new Error(`Invalid status: ${status}`);
+    }
+    
+    // Build event data
+    const eventData: InsertAuditEvent = {
+      timestamp: new Date(),
+      service: this.serviceName,
+      resourceType,
+      resourceId,
+      action,
+      status,
+      description,
+      userId: context.userId,
+      username: context.username,
+      ipAddress: context.ipAddress,
+      sessionId: context.sessionId,
+      organizationId: context.organizationId,
+      metadata: context.metadata,
+      requestId: context.requestId || uuidv4(),
+      retain: context.retain || false
+    };
+    
     try {
-      const response = await axios.get(`${this.config.observabilityUrl}/health`);
+      const response = await this.client.post('/api/audit/events', eventData);
       return response.data;
     } catch (error) {
-      return {
-        status: 'error',
-        components: {
-          error: (error as Error).message
-        }
-      };
+      console.error(`Failed to audit event (${resourceType}/${action}):`, error);
+      // Don't throw, just log the error - audit failures shouldn't break the application
+      return null;
     }
   }
   
   /**
-   * Send logs to observability service
+   * Record a login event
+   * 
+   * @param userId User ID
+   * @param username Username
+   * @param success Whether the login was successful
+   * @param ipAddress IP address of the client
+   * @param context Additional context
+   * @returns The created audit event
    */
-  private async log(level: LogLevel, message: string, context?: Record<string, any>): Promise<void> {
-    if (!this.config.enabled?.logging) {
-      // Just log locally if disabled
-      console[level](`[${level.toUpperCase()}] ${message}`, context);
-      return;
+  async auditLogin(
+    userId: number,
+    username: string,
+    success: boolean,
+    ipAddress: string,
+    context: {
+      sessionId?: string;
+      organizationId?: number;
+      metadata?: Record<string, any>;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    return this.auditEvent(
+      'user',
+      userId.toString(),
+      'login',
+      success ? 'success' : 'failure',
+      `User ${username} ${success ? 'logged in successfully' : 'failed to log in'}`,
+      {
+        userId,
+        username,
+        ipAddress,
+        sessionId: context.sessionId,
+        organizationId: context.organizationId,
+        metadata: context.metadata,
+        requestId: context.requestId
+      }
+    );
+  }
+  
+  /**
+   * Record a logout event
+   * 
+   * @param userId User ID
+   * @param username Username
+   * @param sessionId Session ID
+   * @param context Additional context
+   * @returns The created audit event
+   */
+  async auditLogout(
+    userId: number,
+    username: string,
+    sessionId: string,
+    context: {
+      ipAddress?: string;
+      organizationId?: number;
+      metadata?: Record<string, any>;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    return this.auditEvent(
+      'user',
+      userId.toString(),
+      'logout',
+      'success',
+      `User ${username} logged out`,
+      {
+        userId,
+        username,
+        sessionId,
+        ipAddress: context.ipAddress,
+        organizationId: context.organizationId,
+        metadata: context.metadata,
+        requestId: context.requestId
+      }
+    );
+  }
+  
+  /**
+   * Record a create operation
+   * 
+   * @param userId User ID
+   * @param username Username
+   * @param resourceType Type of resource being created
+   * @param resourceId ID of the created resource
+   * @param details Details about the created resource
+   * @param description Human-readable description
+   * @param context Additional context
+   * @returns The created audit event
+   */
+  async auditCreate(
+    userId: number,
+    username: string,
+    resourceType: string,
+    resourceId: string,
+    details: Record<string, any>,
+    description: string,
+    context: {
+      ipAddress?: string;
+      sessionId?: string;
+      organizationId?: number;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    return this.auditEvent(
+      resourceType,
+      resourceId,
+      'create',
+      'success',
+      description,
+      {
+        userId,
+        username,
+        ipAddress: context.ipAddress,
+        sessionId: context.sessionId,
+        organizationId: context.organizationId,
+        metadata: { details },
+        requestId: context.requestId
+      }
+    );
+  }
+  
+  /**
+   * Record an update operation with data changes
+   * 
+   * @param userId User ID
+   * @param username Username
+   * @param resourceType Type of resource being updated
+   * @param resourceId ID of the updated resource
+   * @param changes Array of changes (field, old value, new value)
+   * @param description Human-readable description
+   * @param context Additional context
+   * @returns The created audit event with data changes
+   */
+  async auditUpdate(
+    userId: number,
+    username: string,
+    resourceType: string,
+    resourceId: string,
+    changes: Array<{
+      field: string;
+      oldValue?: any;
+      newValue?: any;
+    }>,
+    description: string,
+    context: {
+      ipAddress?: string;
+      sessionId?: string;
+      organizationId?: number;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    // First, create the audit event
+    const event = await this.auditEvent(
+      resourceType,
+      resourceId,
+      'update',
+      'success',
+      description,
+      {
+        userId,
+        username,
+        ipAddress: context.ipAddress,
+        sessionId: context.sessionId,
+        organizationId: context.organizationId,
+        metadata: { changeCount: changes.length },
+        requestId: context.requestId
+      }
+    );
+    
+    if (!event) {
+      return null;
     }
     
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      service: this.config.serviceName,
-      version: this.config.serviceVersion,
-      ...this.config.defaultContext,
-      ...context
-    };
+    // Then, record each data change
+    const dataChanges = [];
     
-    // Log locally too
-    console[level](`[${level.toUpperCase()}] ${message}`, context);
-    
-    // Only send to external service if URL is configured
-    if (this.config.observabilityUrl) {
+    for (const change of changes) {
       try {
-        // In a real implementation, this would queue logs and batch send them
-        await axios.post(`${this.config.observabilityUrl}/api/logs`, {
-          logs: [logEntry]
-        });
+        // Convert values to strings for storage
+        const oldValueStr = change.oldValue !== undefined ? 
+          (typeof change.oldValue === 'object' ? JSON.stringify(change.oldValue) : String(change.oldValue)) : 
+          null;
+        
+        const newValueStr = change.newValue !== undefined ? 
+          (typeof change.newValue === 'object' ? JSON.stringify(change.newValue) : String(change.newValue)) : 
+          null;
+        
+        const dataChangeObj: InsertAuditDataChange = {
+          auditEventId: event.id,
+          field: change.field,
+          oldValue: oldValueStr,
+          newValue: newValueStr,
+          timestamp: new Date()
+        };
+        
+        const dataChange = await this.client.post('/api/audit/data-changes', dataChangeObj);
+        dataChanges.push(dataChange.data);
       } catch (error) {
-        console.error('Failed to send log to observability service:', error);
+        console.error(`Failed to record data change for field ${change.field}:`, error);
       }
     }
-  }
-  
-  /**
-   * Report a span to the observability service
-   */
-  private async reportSpan(name: string, data: any): Promise<void> {
-    if (!this.config.enabled?.tracing) return;
     
-    // Only send to external service if URL is configured
-    if (this.config.observabilityUrl) {
-      try {
-        await axios.post(`${this.config.observabilityUrl}/api/traces`, {
-          name,
-          service: this.config.serviceName,
-          ...data
-        });
-      } catch (error) {
-        console.error('Failed to report span to observability service:', error);
-      }
-    }
-  }
-  
-  /**
-   * Report a metric to the observability service
-   */
-  private async reportMetric(
-    type: MetricType, 
-    name: string, 
-    value: number, 
-    labels: Record<string, string> = {}
-  ): Promise<void> {
-    if (!this.config.enabled?.metrics) return;
-    
-    // Only send to external service if URL is configured
-    if (this.config.observabilityUrl) {
-      try {
-        await axios.post(`${this.config.observabilityUrl}/api/metrics`, {
-          type,
-          name,
-          value,
-          labels: {
-            service: this.config.serviceName,
-            version: this.config.serviceVersion,
-            ...labels
-          },
-          timestamp: Date.now()
-        });
-      } catch (error) {
-        console.error(`Failed to report metric ${name} to observability service:`, error);
-      }
-    }
-  }
-  
-  /**
-   * Generate a random ID for spans/traces
-   */
-  private generateId(): string {
-    return Math.random().toString(16).slice(2);
-  }
-  
-  /**
-   * Create a no-op span when tracing is disabled
-   */
-  private createNoOpSpan(): SimpleSpan {
     return {
-      setAttribute: () => ({ /* no-op */ } as SimpleSpan),
-      recordError: () => ({ /* no-op */ } as SimpleSpan),
-      addEvent: () => ({ /* no-op */ } as SimpleSpan),
-      setStatus: () => ({ /* no-op */ } as SimpleSpan),
-      getTraceId: () => 'disabled',
-      getSpanId: () => 'disabled'
+      event,
+      dataChanges
     };
   }
+  
+  /**
+   * Record a delete operation
+   * 
+   * @param userId User ID
+   * @param username Username
+   * @param resourceType Type of resource being deleted
+   * @param resourceId ID of the deleted resource
+   * @param details Details about the deleted resource
+   * @param description Human-readable description
+   * @param context Additional context
+   * @returns The created audit event
+   */
+  async auditDelete(
+    userId: number,
+    username: string,
+    resourceType: string,
+    resourceId: string,
+    details: Record<string, any>,
+    description: string,
+    context: {
+      ipAddress?: string;
+      sessionId?: string;
+      organizationId?: number;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    return this.auditEvent(
+      resourceType,
+      resourceId,
+      'delete',
+      'success',
+      description,
+      {
+        userId,
+        username,
+        ipAddress: context.ipAddress,
+        sessionId: context.sessionId,
+        organizationId: context.organizationId,
+        metadata: { details },
+        requestId: context.requestId
+      }
+    );
+  }
+  
+  /**
+   * Record resource access
+   * 
+   * @param userId User ID
+   * @param username Username
+   * @param resourceType Type of resource being accessed
+   * @param resourceId ID of the accessed resource
+   * @param accessGranted Whether access was granted
+   * @param patientId Patient ID (if applicable)
+   * @param purpose Purpose of access
+   * @param context Additional context
+   * @returns The created audit event with access record
+   */
+  async auditResourceAccess(
+    userId: number,
+    username: string,
+    resourceType: string,
+    resourceId: string,
+    accessGranted: boolean,
+    patientId?: string,
+    purpose?: string,
+    context: {
+      ipAddress?: string;
+      sessionId?: string;
+      organizationId?: number;
+      denialReason?: string;
+      consentId?: string;
+      emergencyAccess?: boolean;
+      metadata?: Record<string, any>;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    // First, create the audit event
+    const event = await this.auditEvent(
+      resourceType,
+      resourceId,
+      'access',
+      accessGranted ? 'success' : 'failure',
+      accessGranted ? 
+        `User ${username} accessed ${resourceType} ${resourceId}` : 
+        `User ${username} was denied access to ${resourceType} ${resourceId}`,
+      {
+        userId,
+        username,
+        ipAddress: context.ipAddress,
+        sessionId: context.sessionId,
+        organizationId: context.organizationId,
+        metadata: context.metadata,
+        requestId: context.requestId
+      }
+    );
+    
+    if (!event) {
+      return null;
+    }
+    
+    // Then, create access record
+    try {
+      const accessObj: InsertAuditAccess = {
+        auditEventId: event.id,
+        timestamp: new Date(),
+        userId,
+        username,
+        resourceType,
+        resourceId,
+        patientId,
+        purpose,
+        accessGranted,
+        denialReason: accessGranted ? null : context.denialReason,
+        consentId: context.consentId,
+        ipAddress: context.ipAddress,
+        sessionId: context.sessionId,
+        emergencyAccess: context.emergencyAccess || false,
+        metadata: context.metadata
+      };
+      
+      const access = await this.client.post('/api/audit/access', accessObj);
+      
+      return {
+        event,
+        access: access.data
+      };
+    } catch (error) {
+      console.error('Failed to record access record:', error);
+      return { event };
+    }
+  }
+  
+  /**
+   * Record an export operation
+   * 
+   * @param userId User ID
+   * @param username Username
+   * @param resourceType Type of resource being exported
+   * @param resourceIds Array of resource IDs being exported
+   * @param description Human-readable description
+   * @param context Additional context
+   * @returns The created audit event
+   */
+  async auditExport(
+    userId: number,
+    username: string,
+    resourceType: string,
+    resourceIds: string[],
+    description: string,
+    context: {
+      ipAddress?: string;
+      sessionId?: string;
+      organizationId?: number;
+      metadata?: Record<string, any>;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    return this.auditEvent(
+      resourceType,
+      null, // No specific resource ID for bulk export
+      'export',
+      'success',
+      description,
+      {
+        userId,
+        username,
+        ipAddress: context.ipAddress,
+        sessionId: context.sessionId,
+        organizationId: context.organizationId,
+        metadata: {
+          resourceCount: resourceIds.length,
+          resourceIds,
+          ...(context.metadata || {})
+        },
+        requestId: context.requestId
+      }
+    );
+  }
+  
+  /**
+   * Record a system event
+   * 
+   * @param action System action
+   * @param description Human-readable description
+   * @param status Outcome status
+   * @param context Additional context
+   * @returns The created audit event
+   */
+  async auditSystemEvent(
+    action: 'start' | 'stop' | 'configure' | 'error' | string,
+    description: string,
+    status: string = 'success',
+    context: {
+      metadata?: Record<string, any>;
+      requestId?: string;
+    } = {}
+  ): Promise<any> {
+    return this.auditEvent(
+      'system',
+      null,
+      action,
+      status,
+      description,
+      {
+        metadata: context.metadata,
+        requestId: context.requestId
+      }
+    );
+  }
+  
+  /**
+   * Get audit events by various filters
+   * 
+   * @param filters Filter criteria
+   * @param page Page number (1-based)
+   * @param pageSize Number of items per page
+   * @returns Paginated list of audit events
+   */
+  async getEvents(
+    filters: {
+      userId?: number;
+      username?: string;
+      service?: string;
+      resourceType?: string;
+      resourceId?: string;
+      action?: string;
+      status?: string;
+      requestId?: string;
+      sessionId?: string;
+      startDate?: Date;
+      endDate?: Date;
+    } = {},
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
+      
+      if (filters.userId) params.append('userId', filters.userId.toString());
+      if (filters.username) params.append('username', filters.username);
+      if (filters.service) params.append('service', filters.service);
+      if (filters.resourceType) params.append('resourceType', filters.resourceType);
+      if (filters.resourceId) params.append('resourceId', filters.resourceId);
+      if (filters.action) params.append('action', filters.action);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.requestId) params.append('requestId', filters.requestId);
+      if (filters.sessionId) params.append('sessionId', filters.sessionId);
+      
+      if (filters.startDate) {
+        params.append('startDate', filters.startDate.toISOString());
+      }
+      
+      if (filters.endDate) {
+        params.append('endDate', filters.endDate.toISOString());
+      }
+      
+      const response = await this.client.get(`/api/audit/events?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get audit events:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a single audit event with all related data
+   * 
+   * @param id Audit event ID
+   * @returns Audit event with related data changes and access records
+   */
+  async getEvent(id: number): Promise<any> {
+    try {
+      const response = await this.client.get(`/api/audit/events/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to get audit event ${id}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get audit data changes by various filters
+   * 
+   * @param filters Filter criteria
+   * @param page Page number (1-based)
+   * @param pageSize Number of items per page
+   * @returns Paginated list of data changes
+   */
+  async getDataChanges(
+    filters: {
+      auditEventId?: number;
+      field?: string;
+      startDate?: Date;
+      endDate?: Date;
+    } = {},
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
+      
+      if (filters.auditEventId) params.append('auditEventId', filters.auditEventId.toString());
+      if (filters.field) params.append('field', filters.field);
+      
+      if (filters.startDate) {
+        params.append('startDate', filters.startDate.toISOString());
+      }
+      
+      if (filters.endDate) {
+        params.append('endDate', filters.endDate.toISOString());
+      }
+      
+      const response = await this.client.get(`/api/audit/data-changes?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get audit data changes:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get audit access records by various filters
+   * 
+   * @param filters Filter criteria
+   * @param page Page number (1-based)
+   * @param pageSize Number of items per page
+   * @returns Paginated list of access records
+   */
+  async getAccessRecords(
+    filters: {
+      auditEventId?: number;
+      userId?: number;
+      username?: string;
+      patientId?: string;
+      resourceType?: string;
+      resourceId?: string;
+      purpose?: string;
+      accessGranted?: boolean;
+      emergencyAccess?: boolean;
+      startDate?: Date;
+      endDate?: Date;
+    } = {},
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
+      
+      if (filters.auditEventId) params.append('auditEventId', filters.auditEventId.toString());
+      if (filters.userId) params.append('userId', filters.userId.toString());
+      if (filters.username) params.append('username', filters.username);
+      if (filters.patientId) params.append('patientId', filters.patientId);
+      if (filters.resourceType) params.append('resourceType', filters.resourceType);
+      if (filters.resourceId) params.append('resourceId', filters.resourceId);
+      if (filters.purpose) params.append('purpose', filters.purpose);
+      
+      if (filters.accessGranted !== undefined) {
+        params.append('accessGranted', filters.accessGranted.toString());
+      }
+      
+      if (filters.emergencyAccess !== undefined) {
+        params.append('emergencyAccess', filters.emergencyAccess.toString());
+      }
+      
+      if (filters.startDate) {
+        params.append('startDate', filters.startDate.toISOString());
+      }
+      
+      if (filters.endDate) {
+        params.append('endDate', filters.endDate.toISOString());
+      }
+      
+      const response = await this.client.get(`/api/audit/access?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get audit access records:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get statistics for audit data
+   * 
+   * @param startDate Start date for the statistics period
+   * @param endDate End date for the statistics period
+   * @returns Audit statistics
+   */
+  async getStatistics(
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      
+      if (startDate) {
+        params.append('startDate', startDate.toISOString());
+      }
+      
+      if (endDate) {
+        params.append('endDate', endDate.toISOString());
+      }
+      
+      const response = await this.client.get(`/api/audit/statistics?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get audit statistics:', error);
+      throw error;
+    }
+  }
+}
+
+/**
+ * Create a new Audit Client
+ */
+export function createAuditClient(config: AuditClientConfig): AuditClient {
+  return new AuditClient(config);
 }

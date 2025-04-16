@@ -1,125 +1,173 @@
-import { type User, type InsertUser } from "@shared/schema";
-import session from "express-session";
-import connectPg from "connect-pg-simple";
-import { eq } from "drizzle-orm";
-import { db, pool } from "./db";
-import { db as dbClient } from "./db/index";
-import { users } from "@shared/schema";
-import { hashPassword } from "./auth";
+/**
+ * Service Registry Storage
+ * 
+ * Handles persistence of service registry data.
+ */
 
-// Define the SessionStore type
-type SessionStore = session.Store;
+import { nanoid } from 'nanoid';
+import { 
+  ServiceInstance, 
+  ServiceRegistration, 
+  ServiceStatus, 
+  ServiceQuery 
+} from './model';
 
-// Setup PostgreSQL session store
-const PostgresSessionStore = connectPg(session);
-
-export interface IStorage {
-  // Session store
-  sessionStore: SessionStore;
-  
-  // User operations
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  getAllUsers(): Promise<User[]>;
-  updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
-  deleteUser(id: number): Promise<boolean>;
+/**
+ * Storage interface for service registry
+ */
+export interface IServiceStorage {
+  registerService(registration: ServiceRegistration): Promise<ServiceInstance>;
+  deregisterService(id: string): Promise<boolean>;
+  updateService(id: string, registration: ServiceRegistration): Promise<ServiceInstance | null>;
+  updateHeartbeat(id: string, status: ServiceStatus, details?: Record<string, any>): Promise<boolean>;
+  getService(id: string): Promise<ServiceInstance | null>;
+  findServices(query: ServiceQuery): Promise<ServiceInstance[]>;
+  getAllServices(): Promise<ServiceInstance[]>;
+  getActiveServices(): Promise<ServiceInstance[]>;
 }
 
-export class DatabaseStorage implements IStorage {
-  sessionStore: SessionStore;
-  
-  constructor() {
-    this.sessionStore = new PostgresSessionStore({
-      pool,
-      createTableIfMissing: true,
-    });
+/**
+ * In-memory implementation of service storage
+ */
+export class MemoryServiceStorage implements IServiceStorage {
+  private services: Map<string, ServiceInstance> = new Map();
+
+  /**
+   * Register a new service
+   */
+  async registerService(registration: ServiceRegistration): Promise<ServiceInstance> {
+    const id = nanoid();
+    const now = new Date().toISOString();
+    
+    const service: ServiceInstance = {
+      ...registration,
+      id,
+      status: ServiceStatus.STARTING,
+      lastUpdated: now,
+      registered: now,
+      weight: registration.weight || 1
+    };
+    
+    this.services.set(id, service);
+    return service;
   }
 
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id));
-    return result[0];
+  /**
+   * Deregister a service
+   */
+  async deregisterService(id: string): Promise<boolean> {
+    return this.services.delete(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username));
-    return result[0];
+  /**
+   * Update service registration
+   */
+  async updateService(id: string, registration: ServiceRegistration): Promise<ServiceInstance | null> {
+    const service = this.services.get(id);
+    
+    if (!service) {
+      return null;
+    }
+    
+    const updatedService: ServiceInstance = {
+      ...registration,
+      id,
+      status: service.status,
+      lastUpdated: new Date().toISOString(),
+      registered: service.registered,
+      weight: registration.weight || service.weight
+    };
+    
+    this.services.set(id, updatedService);
+    return updatedService;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
-    return result[0];
-  }
-
-  async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users);
-  }
-
-  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const result = await db
-      .update(users)
-      .set(userData)
-      .where(eq(users.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteUser(id: number): Promise<boolean> {
-    try {
-      await db.delete(users).where(eq(users.id, id));
-      return true;
-    } catch (error) {
-      console.error("Error deleting user:", error);
+  /**
+   * Update service heartbeat
+   */
+  async updateHeartbeat(id: string, status: ServiceStatus, details?: Record<string, any>): Promise<boolean> {
+    const service = this.services.get(id);
+    
+    if (!service) {
       return false;
     }
-  }
-}
-
-export const storage = new DatabaseStorage();
-
-// Seed function for initial data
-async function seedInitialData() {
-  try {
-    // Check if we already have users
-    const existingUsers = await db.select().from(users);
-    if (existingUsers.length > 0) {
-      console.log("Database already seeded. Skipping seed.");
-      return;
+    
+    service.status = status;
+    service.lastUpdated = new Date().toISOString();
+    
+    if (details) {
+      service.metadata = {
+        ...service.metadata,
+        heartbeatDetails: details
+      };
     }
     
-    console.log("Seeding database with initial data...");
+    return true;
+  }
 
-    // Create default demo user
-    await storage.createUser({
-      username: "admin",
-      password: await hashPassword("password123"),
-      name: "Admin User",
-      role: "admin",
-      email: "admin@smarthealth.com"
+  /**
+   * Get a service by ID
+   */
+  async getService(id: string): Promise<ServiceInstance | null> {
+    return this.services.get(id) || null;
+  }
+
+  /**
+   * Find services by query
+   */
+  async findServices(query: ServiceQuery): Promise<ServiceInstance[]> {
+    return Array.from(this.services.values()).filter(service => {
+      // Check name
+      if (query.name && service.name !== query.name) return false;
+      
+      // Check version
+      if (query.version && service.version !== query.version) return false;
+      
+      // Check type
+      if (query.type && service.type !== query.type) return false;
+      
+      // Check status
+      if (query.status && service.status !== query.status) return false;
+      
+      // Check active
+      if (query.active !== undefined) {
+        const isActive = service.status === ServiceStatus.UP;
+        if (query.active !== isActive) return false;
+      }
+      
+      // Check path
+      if (query.path) {
+        const hasPath = service.endpoints.some(endpoint => endpoint.path === query.path);
+        if (!hasPath) return false;
+      }
+      
+      // Check tags
+      if (query.tags && query.tags.length > 0) {
+        const serviceTags = service.tags || [];
+        const hasAllTags = query.tags.every(tag => serviceTags.includes(tag));
+        if (!hasAllTags) return false;
+      }
+      
+      return true;
     });
-    
-    await storage.createUser({
-      username: "provider",
-      password: await hashPassword("password123"),
-      name: "Dr. Sarah Johnson",
-      role: "provider",
-      email: "provider@smarthealth.com"
-    });
-    
-    await storage.createUser({
-      username: "patient",
-      password: await hashPassword("password123"),
-      name: "Emily Cooper",
-      role: "patient",
-      email: "patient@example.com"
-    });
-    
-    console.log("Database seeding completed.");
-  } catch (error) {
-    console.error("Error seeding database:", error);
+  }
+
+  /**
+   * Get all services
+   */
+  async getAllServices(): Promise<ServiceInstance[]> {
+    return Array.from(this.services.values());
+  }
+
+  /**
+   * Get active services
+   */
+  async getActiveServices(): Promise<ServiceInstance[]> {
+    return Array.from(this.services.values()).filter(
+      service => service.status === ServiceStatus.UP
+    );
   }
 }
 
-// Run the seed function
-seedInitialData();
+// Export singleton instance
+export const serviceStorage = new MemoryServiceStorage();

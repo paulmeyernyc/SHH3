@@ -1,144 +1,168 @@
-# Canonical Dataset Service
+# Audit Service
 
-## Overview
-
-The Canonical Dataset Service provides a centralized, license-aware repository for standardized healthcare terminologies, value sets, mappings, fee schedules, and clinical rules. It serves as the "source of truth" for all canonical data used across the Smart Health Hub platform.
+The Audit Service provides centralized audit logging capability for the Smart Health Hub platform, tracking all activities, data access, and changes for compliance and security purposes.
 
 ## Features
 
-- **FHIR R4 Compatibility**: Full implementation of the FHIR Terminology Service API
-- **License-Aware Access Control**: Manages access to proprietary terminologies based on tenant licensing
-- **Multi-Tenant Design**: Supports multiple organizations with appropriate data isolation
-- **Comprehensive Dataset Support**:
-  - Code Systems (SNOMED CT, LOINC, RxNorm, ICD-10, CPT, etc.)
-  - Value Sets (collections of codes for specific use cases)
-  - Concept Maps (mappings between different code systems)
-  - Fee Schedules (pricing data for procedures/services)
-  - Clinical Rules (decision support logic)
-- **Flexible Query Capabilities**:
-  - Code lookups and validation
-  - Value set expansion
-  - Code translation
-  - Hierarchical relationships
-  - Multilingual support
-
-## Architecture
-
-The service follows a RESTful API design with both standard API endpoints and FHIR-compatible endpoints. It's built on the core Smart Health Hub microservice architecture, leveraging PostgreSQL for data storage.
-
-### Key Components
-
-1. **Code System Management**: Handles terminology systems and their concepts (codes)
-2. **Value Set Management**: Manages sets of codes for specific use cases
-3. **Concept Map Management**: Provides mapping between different code systems
-4. **Fee Schedule Management**: Manages pricing data for procedures and services
-5. **License Management**: Controls access to proprietary content based on tenant licensing
-6. **FHIR Terminology Service**: Provides FHIR-compatible API endpoints
+- Comprehensive audit event tracking with detailed information
+- Data change tracking for monitoring modifications to entities
+- Access tracking for patient data with purpose and consent information
+- Configurable retention policies for managing audit data lifecycle
+- Support for emergency access tracking
+- Client library for easy integration with other services
+- REST API for querying and analyzing audit data
+- Support for batch operations
+- Statistics and reporting
 
 ## API Endpoints
 
-### Code Systems
+### Health Check
+- `GET /health`: Check if the service is running
 
-- `GET /code-systems`: List all code systems
-- `GET /code-systems/:id`: Get a specific code system
-- `POST /code-systems`: Create a new code system (admin only)
-- `PUT /code-systems/:id`: Update a code system (admin only)
-- `GET /code-systems/:id/concepts`: List concepts in a code system
-- `GET /code-systems/:id/concepts/:code`: Get a specific concept
-- `POST /code-systems/:id/concepts`: Add a concept to a code system (admin only)
-- `POST /code-systems/:id/concepts/:code/designations`: Add a designation to a concept (admin only)
+### Audit Events
+- `POST /api/audit/events`: Create a new audit event
+- `GET /api/audit/events`: List audit events with filtering and pagination
+- `GET /api/audit/events/:id`: Get a single audit event with related data
+- `POST /api/audit/events/bulk`: Bulk create audit events
 
-### Value Sets
+### Audit Data Changes
+- `POST /api/audit/data-changes`: Record a data change
+- `GET /api/audit/data-changes`: List data changes with filtering and pagination
 
-- `GET /value-sets`: List all value sets
-- `GET /value-sets/:id`: Get a specific value set
-- `POST /value-sets`: Create a new value set (admin only)
-- `GET /value-sets/:id/expansion`: Expand a value set
-- `POST /value-sets/:id/includes`: Add an include criteria to a value set (admin only)
-- `POST /value-sets/:id/excludes`: Add an exclude criteria to a value set (admin only)
+### Audit Access
+- `POST /api/audit/access`: Record a data access event
+- `GET /api/audit/access`: List access records with filtering and pagination
 
-### Concept Maps
+### Retention Policies
+- `GET /api/audit/retention-policies`: List retention policies
+- `GET /api/audit/retention-policies/:id`: Get a single retention policy
+- `POST /api/audit/retention-policies`: Create a new retention policy
+- `PUT /api/audit/retention-policies/:id`: Update a retention policy
+- `DELETE /api/audit/retention-policies/:id`: Delete a retention policy
+- `POST /api/audit/execute-retention`: Execute retention policies
 
-- `GET /concept-maps`: List all concept maps
-- `GET /concept-maps/:id`: Get a specific concept map
-- `POST /concept-maps`: Create a new concept map (admin only)
-- `GET /concept-maps/:id/translate`: Translate a code using a concept map
-- `POST /concept-maps/:id/elements`: Add a mapping element to a concept map (admin only)
+### Statistics
+- `GET /api/audit/statistics`: Get audit statistics
 
-### Fee Schedules
+## Client Library
 
-- `GET /fee-schedules`: List all fee schedules
-- `GET /fee-schedules/:id`: Get a specific fee schedule
-- `POST /fee-schedules`: Create a new fee schedule (admin only)
-- `GET /fee-schedules/:id/items`: List items in a fee schedule
-- `GET /fee-schedules/:id/items/:code`: Get a specific fee schedule item
-- `POST /fee-schedules/:id/items`: Add an item to a fee schedule (admin only)
+The Audit Service includes a client library for easy integration with other services. To use the client library:
 
-### Clinical Rules
+```typescript
+import { createAuditClient } from 'audit-service/client';
 
-- `GET /clinical-rules`: List all clinical rules
-- `GET /clinical-rules/:ruleSetId/:ruleId`: Get a specific clinical rule
-- `POST /clinical-rules`: Create a new clinical rule (admin only)
-- `POST /clinical-rules/:ruleSetId/:ruleId/elements`: Add an element to a clinical rule (admin only)
+// Create a client instance
+const auditClient = new AuditClient({
+  baseUrl: 'http://audit-service:3002',
+  serviceName: 'my-service',
+  retry: true
+});
 
-### Licenses
+// Log a basic event
+await auditClient.auditEvent(
+  'patient',
+  '12345',
+  'read',
+  'success',
+  'Patient record accessed',
+  {
+    userId: 1,
+    username: 'dr.smith'
+  }
+);
 
-- `GET /licenses`: List all licenses for a tenant
-- `GET /licenses/check`: Check if a tenant has a specific license
-- `POST /licenses`: Create a new license (admin only)
-- `PUT /licenses/:tenantId/:licenseType`: Update a license (admin only)
-- `GET /licenses/:tenantId/:licenseType/usage`: Get license usage statistics (admin only)
+// Use convenience methods
+await auditClient.auditLogin(1, 'dr.smith', true, '192.168.1.100');
 
-### FHIR Terminology Service
+await auditClient.auditUpdate(
+  1,
+  'dr.smith',
+  'patient',
+  '12345',
+  [
+    { field: 'address', oldValue: '123 Main St', newValue: '456 Oak Ave' },
+    { field: 'phoneNumber', oldValue: '555-123-4567', newValue: '555-987-6543' }
+  ],
+  'Updated patient contact information'
+);
 
-- `GET /fhir/CodeSystem`: Search for code systems
-- `GET /fhir/CodeSystem/:id`: Get a specific code system
-- `GET /fhir/CodeSystem/$lookup`: Look up a code
-- `GET /fhir/CodeSystem/$validate-code`: Validate a code
-- `GET /fhir/ValueSet`: Search for value sets
-- `GET /fhir/ValueSet/:id`: Get a specific value set
-- `GET /fhir/ValueSet/$expand`: Expand a value set
+// Record data access
+await auditClient.auditResourceAccess(
+  1,
+  'dr.smith',
+  'patient',
+  '12345',
+  true,
+  '12345',
+  'treatment'
+);
+```
 
-## License Management
+## Environment Variables
 
-The service implements a sophisticated license management system for handling proprietary terminology content:
+- `PORT`: Port number (default: 3002)
+- `REDIS_URL`: Redis URL for caching (optional)
+- `DATABASE_URL`: PostgreSQL connection string
 
-1. **License Registration**: Administrators register licenses for tenants
-2. **License Verification**: API endpoints verify license validity before providing access
-3. **License Usage Tracking**: The system tracks and logs usage for audit and compliance
-4. **License Expiration**: Access is automatically restricted once licenses expire
+## Development
 
-## Usage Examples
+### Prerequisites
 
-See the following files for implementation examples:
+- Node.js 18 or later
+- PostgreSQL database
 
-- `src/client-example.ts`: How to use the service API from other services
-- `src/import-sample.ts`: How to import terminology data into the service
+### Installation
 
-## Data Model
+```bash
+cd microservices/audit-service
+npm install
+```
 
-The service uses a structured data model aligned with FHIR R4 specifications:
+### Running in Development Mode
 
-1. **Code Systems**: Metadata about terminology systems like SNOMED CT, LOINC
-2. **Code System Concepts**: The actual codes and their details
-3. **Value Sets**: Collections of codes for specific use cases
-4. **Concept Maps**: Mappings between codes in different systems
-5. **Fee Schedules**: Pricing information for procedures/services
-6. **Clinical Rules**: Decision support rules
-7. **Licenses**: License information for terminologies
+```bash
+npm run dev
+```
 
-## Deployment Considerations
+### Building for Production
 
-- **Database Sizing**: Terminology datasets can be very large (e.g., SNOMED CT has over 350,000 concepts)
-- **Caching Strategy**: Implement caching for frequently used codes and value sets
-- **Data Loading**: Prepare for significant initial load times when importing full terminologies
-- **Update Process**: Plan for regular updates as terminologies are released (typically biannually)
-- **License Management**: Ensure license expiration alerts are configured
+```bash
+npm run build
+```
 
-## Future Enhancements
+### Running in Production Mode
 
-- Advanced subsumption testing for hierarchical terminologies
-- Specialized indexes for specific terminology use cases
-- Bulk export functionality
-- Value set composition tools
-- Rule-based concept mapping
+```bash
+npm start
+```
+
+### Running Tests
+
+```bash
+npm test
+```
+
+## Database Schema
+
+The service uses the following database tables:
+
+1. `audit_events`: Main table for all audit events
+2. `audit_data_changes`: Records specific field changes
+3. `audit_access`: Tracks access to patient data
+4. `audit_retention_policies`: Defines data retention policies
+
+## Integration with Other Services
+
+Other services can integrate with the Audit Service using the provided client library. This ensures consistent audit logging across the platform with minimal boilerplate code.
+
+## Compliance
+
+The Audit Service is designed to support compliance with healthcare regulations such as HIPAA, which require detailed audit logs for PHI access and changes.
+
+## Security
+
+All audit records include information about the user, service, IP address, and other relevant context to support forensic analysis if needed.
+
+## Retention and Storage
+
+Audit data can be managed with configurable retention policies based on resource type, action, and other criteria. Critical audit events can be marked for indefinite retention.
