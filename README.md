@@ -1,168 +1,61 @@
-# Audit Service
+# Smart Health Hub API Gateway
 
-The Audit Service provides centralized audit logging capability for the Smart Health Hub platform, tracking all activities, data access, and changes for compliance and security purposes.
+The API Gateway serves as the entry point for all requests to the Smart Health Hub platform. It routes requests to the appropriate microservices based on the request path.
 
-## Features
+## Overview
 
-- Comprehensive audit event tracking with detailed information
-- Data change tracking for monitoring modifications to entities
-- Access tracking for patient data with purpose and consent information
-- Configurable retention policies for managing audit data lifecycle
-- Support for emergency access tracking
-- Client library for easy integration with other services
-- REST API for querying and analyzing audit data
-- Support for batch operations
-- Statistics and reporting
+The API Gateway provides the following functionality:
+- Request routing to appropriate microservices
+- Basic security with Helmet
+- CORS support
+- Rate limiting
+- Request ID generation
+- Error handling
+- WebSocket proxying (for real-time services)
 
-## API Endpoints
+## Architecture
 
-### Health Check
-- `GET /health`: Check if the service is running
+The gateway is a lightweight Express server that uses http-proxy-middleware to route requests to the appropriate microservices.
 
-### Audit Events
-- `POST /api/audit/events`: Create a new audit event
-- `GET /api/audit/events`: List audit events with filtering and pagination
-- `GET /api/audit/events/:id`: Get a single audit event with related data
-- `POST /api/audit/events/bulk`: Bulk create audit events
+## Services
 
-### Audit Data Changes
-- `POST /api/audit/data-changes`: Record a data change
-- `GET /api/audit/data-changes`: List data changes with filtering and pagination
+The gateway routes requests to the following microservices:
 
-### Audit Access
-- `POST /api/audit/access`: Record a data access event
-- `GET /api/audit/access`: List access records with filtering and pagination
+| Path | Service | Port |
+| ---- | ------- | ---- |
+| `/api/auth`, `/api/login`, `/api/logout`, `/api/register`, `/api/user` | Auth Service | 3001 |
+| `/api/fhir` | FHIR Service | 3002 |
+| `/api/mcp` | MCP Service | 3003 |
+| `/api/services` | Service Management | 3004 |
+| `/api/person` | Person Connect | 3007 |
+| `/api/messages`, `/ws/messages` | Messaging Service | 3008 |
+| `/api/workflows` | Workflow Engine | 3009 |
+| `/api/notifications` | Notification Service | 3010 |
+| `/api/audit` | Audit Service | 3011 |
+| `/api/config` | Configuration Service | 3012 |
 
-### Retention Policies
-- `GET /api/audit/retention-policies`: List retention policies
-- `GET /api/audit/retention-policies/:id`: Get a single retention policy
-- `POST /api/audit/retention-policies`: Create a new retention policy
-- `PUT /api/audit/retention-policies/:id`: Update a retention policy
-- `DELETE /api/audit/retention-policies/:id`: Delete a retention policy
-- `POST /api/audit/execute-retention`: Execute retention policies
+## Configuration
 
-### Statistics
-- `GET /api/audit/statistics`: Get audit statistics
+The gateway can be configured using the following environment variables:
 
-## Client Library
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `PORT` | 3000 | The port the gateway listens on |
+| `NODE_ENV` | development | The environment the gateway runs in |
+| `RATE_LIMIT_ENABLED` | false | Whether rate limiting is enabled |
+| `RATE_LIMIT_WINDOW_MS` | 60000 | The time window for rate limiting in milliseconds |
+| `RATE_LIMIT_MAX` | 100 | The maximum number of requests per window |
 
-The Audit Service includes a client library for easy integration with other services. To use the client library:
+## Deployment
 
-```typescript
-import { createAuditClient } from 'audit-service/client';
-
-// Create a client instance
-const auditClient = new AuditClient({
-  baseUrl: 'http://audit-service:3002',
-  serviceName: 'my-service',
-  retry: true
-});
-
-// Log a basic event
-await auditClient.auditEvent(
-  'patient',
-  '12345',
-  'read',
-  'success',
-  'Patient record accessed',
-  {
-    userId: 1,
-    username: 'dr.smith'
-  }
-);
-
-// Use convenience methods
-await auditClient.auditLogin(1, 'dr.smith', true, '192.168.1.100');
-
-await auditClient.auditUpdate(
-  1,
-  'dr.smith',
-  'patient',
-  '12345',
-  [
-    { field: 'address', oldValue: '123 Main St', newValue: '456 Oak Ave' },
-    { field: 'phoneNumber', oldValue: '555-123-4567', newValue: '555-987-6543' }
-  ],
-  'Updated patient contact information'
-);
-
-// Record data access
-await auditClient.auditResourceAccess(
-  1,
-  'dr.smith',
-  'patient',
-  '12345',
-  true,
-  '12345',
-  'treatment'
-);
-```
-
-## Environment Variables
-
-- `PORT`: Port number (default: 3002)
-- `REDIS_URL`: Redis URL for caching (optional)
-- `DATABASE_URL`: PostgreSQL connection string
+The gateway can be deployed as a standalone Docker container or as part of the Smart Health Hub platform using Docker Compose.
 
 ## Development
 
-### Prerequisites
-
-- Node.js 18 or later
-- PostgreSQL database
-
-### Installation
-
-```bash
-cd microservices/audit-service
-npm install
-```
-
-### Running in Development Mode
+To run the gateway in development mode:
 
 ```bash
 npm run dev
 ```
 
-### Building for Production
-
-```bash
-npm run build
-```
-
-### Running in Production Mode
-
-```bash
-npm start
-```
-
-### Running Tests
-
-```bash
-npm test
-```
-
-## Database Schema
-
-The service uses the following database tables:
-
-1. `audit_events`: Main table for all audit events
-2. `audit_data_changes`: Records specific field changes
-3. `audit_access`: Tracks access to patient data
-4. `audit_retention_policies`: Defines data retention policies
-
-## Integration with Other Services
-
-Other services can integrate with the Audit Service using the provided client library. This ensures consistent audit logging across the platform with minimal boilerplate code.
-
-## Compliance
-
-The Audit Service is designed to support compliance with healthcare regulations such as HIPAA, which require detailed audit logs for PHI access and changes.
-
-## Security
-
-All audit records include information about the user, service, IP address, and other relevant context to support forensic analysis if needed.
-
-## Retention and Storage
-
-Audit data can be managed with configurable retention policies based on resource type, action, and other criteria. Critical audit events can be marked for indefinite retention.
+This will start the gateway on port 3000 in development mode.

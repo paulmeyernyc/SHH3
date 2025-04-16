@@ -1,0 +1,54 @@
+{
+  "common": {
+    "appName": "Smart Health Hub",
+    "footer": "© {{year}} Smart Health Network PBC"
+  },
+  "header": {
+    "platformOverview": "Platform Overview",
+    "logout": "Log Out",
+    "signIn": "Sign In",
+    "settings": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "home": "Home",
+    "services": "Services",
+    "documentation": "Documentation",
+    "testing": "Testing Portal"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "username": "Username",
+    "password": "Password",
+    "defaultLogin": "Default login: username \"demo\", password \"password\"",
+    "platformOverviewNoLogin": "View Platform Overview (no login required)"
+  },
+  "dashboard": {
+    "welcome": "Welcome {{name}}!",
+    "authenticated": "Your account is successfully authenticated.",
+    "role": "Role: {{role}}",
+    "email": "Email: {{email}}",
+    "viewPlatformServices": "View Platform Services"
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "message": "The page you're looking for doesn't exist.",
+    "returnHome": "Return Home"
+  },
+  "platformOverview": {
+    "title": "Smart Health Platform Overview",
+    "subtitle": "A comprehensive healthcare interoperability platform",
+    "description": "Smart Health Hub is a comprehensive healthcare interoperability platform enabling seamless medical data exchange through advanced microservices architecture and intelligent service management.",
+    "features": {
+      "fhir": "FHIR R4 fully compatible service integration",
+      "discovery": "Advanced service discovery and gateway systems",
+      "security": "Comprehensive security and communication protocols"
+    }
+  },
+  "languageSwitcher": {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French"
+  }
+}

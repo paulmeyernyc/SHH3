@@ -1,226 +1,215 @@
 /**
- * Error handling middleware for document service
+ * Error Handler Middleware for Express
  * 
- * Provides centralized error handling with standardized formatting
- * and error tracking
+ * This middleware provides a consistent way to handle errors in Express applications,
+ * transforming various error types into standardized API responses.
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { DocumentServiceError, isDocumentServiceError } from '../services/errors';
+import { ZodError } from 'zod';
+import { AppError, FieldError } from './app-error';
+import { ErrorCode, HttpStatusCode, ErrorSeverity } from './error-types';
+import './types'; // Import the extended types
 
-interface ErrorMetrics {
-  totalErrors: number;
-  clientErrors: number;
-  serverErrors: number;
-  validationErrors: number;
-  authErrors: number;
-  notFoundErrors: number;
-  errorsByEndpoint: Record<string, number>;
-  errorsByType: Record<string, number>;
-}
-
-// Error metrics for monitoring
-const errorMetrics: ErrorMetrics = {
-  totalErrors: 0,
-  clientErrors: 0,
-  serverErrors: 0,
-  validationErrors: 0,
-  authErrors: 0,
-  notFoundErrors: 0,
-  errorsByEndpoint: {},
-  errorsByType: {}
+// Import captureError directly to avoid circular dependency
+// We'll just declare it here for now
+const captureError = (error: any) => {
+  console.error('[ERROR CAPTURE MOCK]', error);
+  return null;
 };
 
-/**
- * Central error handling middleware
- * Processes all errors and returns standardized error responses
- */
-export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction): void {
-  // Transform error to DocumentServiceError if it's not one already
-  const error = isDocumentServiceError(err)
-    ? err
-    : new DocumentServiceError(
-        err.message || 'An unexpected error occurred',
-        500,
-        'INTERNAL_ERROR',
-        { originalError: err.name }
-      );
+// Environment configuration
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  // Collect request information for logging
-  const requestInfo = {
-    method: req.method,
-    url: req.originalUrl,
-    ip: req.ip,
-    userId: (req.user as any)?.id || 'anonymous',
-    userAgent: req.headers['user-agent'],
-    timestamp: new Date().toISOString()
-  };
-
-  // Track error for metrics
-  trackError(error, requestInfo);
-  
-  // Log error for troubleshooting
-  logError(error, requestInfo);
-
-  // Send standardized response to client
-  res.status(error.statusCode).json({
-    status: 'error',
-    statusCode: error.statusCode,
-    errorCode: error.errorCode,
-    message: error.message,
-    requestId: req.headers['x-request-id'] || 'unknown',
-    timestamp: new Date().toISOString()
+// Function to process ZodError into field errors
+function processZodError(error: ZodError): FieldError[] {
+  return error.errors.map(err => {
+    // Extract field path as string (e.g., 'user.address.street')
+    const field = err.path.join('.');
+    
+    return {
+      field,
+      message: err.message,
+      code: 'INVALID_VALUE',
+      value: undefined // Can't safely access input in newer Zod versions
+    };
   });
 }
 
-/**
- * Track error metrics for monitoring and alerting
- */
-function trackError(error: DocumentServiceError, requestInfo: any): void {
-  errorMetrics.totalErrors++;
-  
-  // Track by error category
-  if (error.statusCode >= 400 && error.statusCode < 500) {
-    errorMetrics.clientErrors++;
-  } else if (error.statusCode >= 500) {
-    errorMetrics.serverErrors++;
-  }
-  
-  // Track specific error types
-  if (error.statusCode === 400 || error.statusCode === 422) {
-    errorMetrics.validationErrors++;
-  } else if (error.statusCode === 401 || error.statusCode === 403) {
-    errorMetrics.authErrors++;
-  } else if (error.statusCode === 404) {
-    errorMetrics.notFoundErrors++;
-  }
-  
-  // Track errors by endpoint
-  const endpoint = requestInfo.url.split('?')[0]; // Remove query params
-  errorMetrics.errorsByEndpoint[endpoint] = (errorMetrics.errorsByEndpoint[endpoint] || 0) + 1;
-  
-  // Track errors by type
-  const errorType = error.errorCode;
-  errorMetrics.errorsByType[errorType] = (errorMetrics.errorsByType[errorType] || 0) + 1;
-  
-  // In a production system, you might send these metrics to a monitoring service
-  // like Prometheus, DataDog, New Relic, etc.
+// Function to determine if the request accepts JSON
+function acceptsJson(req: Request): boolean {
+  return req.accepts(['json', 'html', 'text']) === 'json';
+}
+
+// Options for the error handler middleware
+export interface ErrorHandlerOptions {
+  // Whether to include detailed error information in responses
+  includeDebugInfo?: boolean;
+  // Whether to log errors
+  logErrors?: boolean;
+  // Custom logger function
+  logger?: (message: string, error: any) => void;
+  // Error capture service
+  errorCapture?: typeof captureError;
 }
 
 /**
- * Log error details for troubleshooting
+ * Express middleware to handle errors consistently
  */
-function logError(error: DocumentServiceError, requestInfo: any): void {
-  // Combine error and request info for comprehensive logging
-  const logData = {
-    ...requestInfo,
-    errorCode: error.errorCode,
-    errorMessage: error.message,
-    statusCode: error.statusCode,
-    details: error.details,
-    stack: error.stack
-  };
-  
-  // In development, log to console
-  // In production, would log to centralized logging system
-  if (process.env.NODE_ENV === 'production') {
-    // Simple JSON stringification for console in production
-    // In a real system, this would go to proper logging system
-    console.error('ERROR:', JSON.stringify(logData));
-  } else {
-    // More detailed logging for development
-    console.error('\n===== ERROR DETAILS =====');
-    console.error(`Time: ${new Date().toISOString()}`);
-    console.error(`Request: ${requestInfo.method} ${requestInfo.url}`);
-    console.error(`User: ${requestInfo.userId} (${requestInfo.ip})`);
-    console.error(`Error: [${error.statusCode}] ${error.errorCode} - ${error.message}`);
+export function errorHandler(options: ErrorHandlerOptions = {}) {
+  const includeDebugInfo = options.includeDebugInfo !== undefined 
+    ? options.includeDebugInfo 
+    : isDevelopment;
     
-    if (error.details) {
-      console.error('Details:', error.details);
+  const logErrors = options.logErrors !== undefined
+    ? options.logErrors
+    : true;
+    
+  const logger = options.logger || console.error;
+  const errorCapture = options.errorCapture || captureError;
+  
+  return (err: any, req: Request, res: Response, next: NextFunction) => {
+    // Generate request context for errors
+    const context = {
+      requestId: req.id || req.headers['x-request-id'] as string,
+      userId: req.user?.id,
+      tenantId: req.headers['x-tenant-id'] as string,
+      environment: process.env.NODE_ENV,
+      service: process.env.SERVICE_NAME,
+      operation: `${req.method} ${req.path}`
+    };
+    
+    let appError: AppError;
+    
+    // Convert different error types to AppError
+    if (err instanceof AppError) {
+      // Already an AppError, just add context if missing
+      appError = err;
+      if (!appError.context) {
+        Object.defineProperty(appError, 'context', {
+          value: context,
+          enumerable: true,
+          writable: false
+        });
+      }
+    } else if (err instanceof ZodError) {
+      // Zod validation error
+      appError = AppError.validation(
+        processZodError(err),
+        'Request validation failed',
+        { context }
+      );
+    } else if (err.type === 'entity.parse.failed') {
+      // JSON parse error
+      appError = new AppError({
+        code: ErrorCode.VALIDATION_INVALID_FORMAT,
+        message: 'Invalid JSON in request body',
+        context,
+        severity: ErrorSeverity.WARNING
+      });
+    } else if (err.name === 'UnauthorizedError' || err.name === 'JsonWebTokenError') {
+      // JWT/Auth errors
+      appError = new AppError({
+        code: ErrorCode.AUTHENTICATION_INVALID_TOKEN,
+        message: err.message || 'Invalid authentication token',
+        context,
+        cause: err
+      });
+    } else if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+      // Connection errors
+      appError = new AppError({
+        code: ErrorCode.NETWORK_CONNECTIVITY_ERROR,
+        message: 'Unable to connect to the server',
+        context,
+        cause: err,
+        details: {
+          address: err.address,
+          port: err.port
+        }
+      });
+    } else if (err.name === 'SequelizeValidationError') {
+      // ORM validation errors (if using Sequelize)
+      const fieldErrors: FieldError[] = (err.errors || []).map((e: any) => ({
+        field: e.path,
+        message: e.message,
+        value: e.value
+      }));
+      
+      appError = AppError.validation(fieldErrors, 'Data validation error', { context });
+    } else if (err.code === 'ER_DUP_ENTRY' || err.code === '23505') {
+      // Database unique constraint violations
+      appError = new AppError({
+        code: ErrorCode.VALIDATION_DUPLICATE_VALUE,
+        message: 'A record with this value already exists',
+        context,
+        cause: err
+      });
+    } else if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+      // Timeout errors
+      appError = new AppError({
+        code: ErrorCode.NETWORK_TIMEOUT,
+        message: 'Request timed out',
+        context,
+        cause: err
+      });
+    } else if (err.status === 404 || err.statusCode === 404) {
+      // 404 errors
+      appError = new AppError({
+        code: ErrorCode.RESOURCE_NOT_FOUND,
+        message: err.message || 'Resource not found',
+        httpStatus: HttpStatusCode.NOT_FOUND,
+        context
+      });
+    } else {
+      // Generic errors - convert to AppError
+      appError = AppError.internal(err, err.message || 'Internal server error', { context });
     }
     
-    console.error('Stack:', error.stack);
-    console.error('========================\n');
-  }
-}
-
-/**
- * Middleware to handle 404 (Not Found) errors
- * This should be placed after all routes are defined
- */
-export function notFoundHandler(req: Request, res: Response, next: NextFunction): void {
-  next(new DocumentServiceError(
-    `Route not found: ${req.method} ${req.originalUrl}`,
-    404,
-    'NOT_FOUND'
-  ));
-}
-
-/**
- * Get current error metrics for monitoring
- * In a production system, this would expose metrics for Prometheus scraping
- */
-export function getErrorMetrics(): ErrorMetrics {
-  return { ...errorMetrics };
-}
-
-/**
- * Reset error metrics (for testing purposes)
- */
-export function resetErrorMetrics(): void {
-  errorMetrics.totalErrors = 0;
-  errorMetrics.clientErrors = 0;
-  errorMetrics.serverErrors = 0;
-  errorMetrics.validationErrors = 0;
-  errorMetrics.authErrors = 0;
-  errorMetrics.notFoundErrors = 0;
-  errorMetrics.errorsByEndpoint = {};
-  errorMetrics.errorsByType = {};
-}
-
-/**
- * Utility function for async route handlers to catch errors
- * and pass them to the error middleware
- */
-export function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    // Log the error (if enabled)
+    if (logErrors) {
+      logger(`[ERROR] ${appError.code}: ${appError.message}`, appError.toLogFormat());
+    }
+    
+    // Send the error to the error tracking service
+    errorCapture(appError);
+    
+    // Send response in the appropriate format
+    if (acceptsJson(req)) {
+      // Send JSON response
+      const { status, body } = appError.toResponseObject(includeDebugInfo);
+      res.status(status).json(body);
+    } else {
+      // Non-JSON response (basic error page)
+      const { status } = appError.toResponseObject();
+      res.status(status).send(`
+        <html>
+          <head><title>Error: ${status}</title></head>
+          <body>
+            <h1>Error: ${status}</h1>
+            <p>${appError.message}</p>
+            <p>Error ID: ${appError.errorId}</p>
+            ${includeDebugInfo && appError.stack ? `<pre>${appError.stack}</pre>` : ''}
+          </body>
+        </html>
+      `);
+    }
   };
 }
 
 /**
- * Rate limiting error handler middleware
- * Converts rate limiting errors to standard DocumentServiceError format
+ * Express middleware to handle 404 errors
  */
-export function rateLimitErrorHandler(err: Error, req: Request, res: Response, next: NextFunction): void {
-  // Check if this is a rate limit error from express-rate-limit
-  if (err.message.includes('Too many requests') || err.message.includes('Rate limit exceeded')) {
-    return next(new DocumentServiceError(
-      'Rate limit exceeded, please try again later',
-      429,
-      'RATE_LIMIT_EXCEEDED',
-      { originalError: err.message }
-    ));
-  }
+export function notFoundHandler(req: Request, res: Response, next: NextFunction) {
+  const error = new AppError({
+    code: ErrorCode.RESOURCE_NOT_FOUND,
+    message: `Route not found: ${req.method} ${req.path}`,
+    httpStatus: HttpStatusCode.NOT_FOUND,
+    context: {
+      requestId: req.id || req.headers['x-request-id'] as string,
+      service: process.env.SERVICE_NAME,
+      operation: `${req.method} ${req.path}`
+    }
+  });
   
-  // Pass through to next error handler if not a rate limiting error
-  next(err);
-}
-
-/**
- * JSON parsing error handler middleware
- * Converts body-parser JSON errors to standard DocumentServiceError format
- */
-export function jsonParsingErrorHandler(err: Error, req: Request, res: Response, next: NextFunction): void {
-  if (err instanceof SyntaxError && (err as any).status === 400 && 'body' in err) {
-    return next(new DocumentServiceError(
-      'Invalid JSON in request body',
-      400,
-      'INVALID_JSON',
-      { originalError: err.message }
-    ));
-  }
-  
-  // Pass through to next error handler if not a JSON parsing error
-  next(err);
+  next(error);
 }

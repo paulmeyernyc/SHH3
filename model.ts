@@ -1,133 +1,166 @@
 /**
- * Service Registry Model
+ * API Gateway Model
  * 
- * Defines models used by the service registry.
+ * Defines models used by the API Gateway.
  */
 
 import { z } from 'zod';
 
 /**
- * Service type enum
+ * Route types supported by the gateway
  */
-export enum ServiceType {
-  REST = 'REST',
+export enum RouteType {
+  HTTP = 'HTTP',
   GRAPHQL = 'GRAPHQL',
-  GRPC = 'GRPC',
   WEBSOCKET = 'WEBSOCKET',
-  BATCH = 'BATCH',
-  WORKER = 'WORKER'
+  STATIC = 'STATIC'
 }
 
 /**
- * Service status enum
+ * Authentication types supported by the gateway
  */
-export enum ServiceStatus {
-  STARTING = 'STARTING',
-  UP = 'UP',
-  DOWN = 'DOWN',
-  OUT_OF_SERVICE = 'OUT_OF_SERVICE',
-  UNKNOWN = 'UNKNOWN'
+export enum AuthType {
+  NONE = 'NONE',
+  JWT = 'JWT',
+  API_KEY = 'API_KEY',
+  BASIC = 'BASIC',
+  OAUTH2 = 'OAUTH2'
 }
 
 /**
- * Service endpoint
+ * Rate limit configuration
  */
-export interface ServiceEndpoint {
+export interface RateLimitConfig {
+  limit: number;
+  window: number;  // in seconds
+  type: 'user' | 'ip' | 'api-key' | 'service';
+}
+
+/**
+ * Cache configuration
+ */
+export interface CacheConfig {
+  enabled: boolean;
+  ttl: number;  // in seconds
+  maxSize?: number;  // in items
+  private?: boolean;  // cache per user
+  varyByHeaders?: string[];
+  varyByQueryParams?: string[];
+}
+
+/**
+ * Endpoint or route configuration
+ */
+export interface RouteConfig {
+  id: string;
   path: string;
-  method?: string;
-  secured: boolean;
+  pathRegex?: string;
+  type: RouteType;
+  methods: string[];
+  service: string;  // Service name
+  serviceVersion?: string;  // Service version constraint
+  target: string;  // Target path on the service
+  strip?: boolean;  // Strip the route path before forwarding
+  auth: AuthType;
+  scopes?: string[];  // Required scopes/permissions
+  rateLimit?: RateLimitConfig;
+  cache?: CacheConfig;
+  timeout?: number;  // in milliseconds
+  retries?: number;
+  circuitBreaker?: boolean;
+  cors?: boolean;
+  tags?: string[];
+  documentation?: RouteDocumentation;
+  active: boolean;
+  priority: number;  // Higher number = higher priority
+}
+
+/**
+ * Route documentation
+ */
+export interface RouteDocumentation {
+  summary?: string;
   description?: string;
-  rateLimit?: {
-    type: 'user' | 'ip' | 'api-key' | 'service';
-    limit: number;
-    window: number; // in seconds
-  };
+  requestBody?: any;
+  responses?: Record<string, any>;
+  parameters?: any[];
   tags?: string[];
   deprecated?: boolean;
 }
 
 /**
- * Service registration request
+ * Service information
  */
-export interface ServiceRegistration {
+export interface ServiceInfo {
+  id: string;
   name: string;
   version: string;
-  type: ServiceType;
-  description?: string;
-  host: string;
-  port: number;
-  securePort?: number;
-  endpoints: ServiceEndpoint[];
-  health?: {
-    path: string;
-    interval?: number; // in milliseconds
-  };
-  tags?: string[];
-  weight?: number; // for load balancing, default 1
-  metadata?: Record<string, any>;
-}
-
-/**
- * Service instance in registry
- */
-export interface ServiceInstance extends ServiceRegistration {
-  id: string;
-  status: ServiceStatus;
-  lastUpdated: string;
-  registered: string;
+  url: string;
+  healthUrl?: string;
+  active: boolean;
   weight: number;
 }
 
 /**
- * Heartbeat update
+ * Request context for gateway handlers
  */
-export interface Heartbeat {
-  status: ServiceStatus;
-  details?: Record<string, any>;
+export interface GatewayContext {
+  route: RouteConfig;
+  service: ServiceInfo;
+  authInfo?: {
+    type: AuthType;
+    user?: any;
+    scopes?: string[];
+  };
+  startTime: number;
+  requestId: string;
+  originalUrl: string;
 }
 
 /**
- * Service query parameters
+ * Route configuration schema for validation
  */
-export interface ServiceQuery {
-  name?: string;
-  version?: string;
-  type?: ServiceType;
-  status?: ServiceStatus;
-  path?: string;
-  tags?: string[];
-  active?: boolean;
-}
-
-/**
- * Service registration schema
- */
-export const ServiceRegistrationSchema = z.object({
-  name: z.string().min(1).max(100),
-  version: z.string().min(1).max(50),
-  type: z.nativeEnum(ServiceType),
-  description: z.string().max(500).optional(),
-  host: z.string().min(1).max(255),
-  port: z.number().int().positive(),
-  securePort: z.number().int().positive().optional(),
-  endpoints: z.array(z.object({
-    path: z.string().min(1),
-    method: z.string().optional(),
-    secured: z.boolean(),
+export const RouteConfigSchema = z.object({
+  id: z.string().optional(),
+  path: z.string().min(1),
+  pathRegex: z.string().optional(),
+  type: z.nativeEnum(RouteType),
+  methods: z.array(z.string().min(1)),
+  service: z.string().min(1),
+  serviceVersion: z.string().optional(),
+  target: z.string().optional(),
+  strip: z.boolean().optional().default(false),
+  auth: z.nativeEnum(AuthType).default(AuthType.NONE),
+  scopes: z.array(z.string()).optional(),
+  rateLimit: z.object({
+    limit: z.number().int().positive(),
+    window: z.number().int().positive(),
+    type: z.enum(['user', 'ip', 'api-key', 'service'])
+  }).optional(),
+  cache: z.object({
+    enabled: z.boolean().default(false),
+    ttl: z.number().int().positive(),
+    maxSize: z.number().int().positive().optional(),
+    private: z.boolean().optional().default(false),
+    varyByHeaders: z.array(z.string()).optional(),
+    varyByQueryParams: z.array(z.string()).optional()
+  }).optional(),
+  timeout: z.number().int().positive().optional(),
+  retries: z.number().int().min(0).optional(),
+  circuitBreaker: z.boolean().optional().default(true),
+  cors: z.boolean().optional().default(true),
+  tags: z.array(z.string()).optional(),
+  documentation: z.object({
+    summary: z.string().optional(),
     description: z.string().optional(),
-    rateLimit: z.object({
-      type: z.enum(['user', 'ip', 'api-key', 'service']),
-      limit: z.number().int().positive(),
-      window: z.number().int().positive()
-    }).optional(),
+    requestBody: z.any().optional(),
+    responses: z.record(z.any()).optional(),
+    parameters: z.array(z.any()).optional(),
     tags: z.array(z.string()).optional(),
     deprecated: z.boolean().optional()
-  })),
-  health: z.object({
-    path: z.string().min(1),
-    interval: z.number().int().positive().optional()
   }).optional(),
-  tags: z.array(z.string()).optional(),
-  weight: z.number().int().positive().optional().default(1),
-  metadata: z.record(z.any()).optional()
+  active: z.boolean().optional().default(true),
+  priority: z.number().int().optional().default(1)
 });
+
+export type RouteConfigInput = z.infer<typeof RouteConfigSchema>;

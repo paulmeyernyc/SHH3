@@ -6,17 +6,15 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy service files
-COPY ./microservices/common ./microservices/common
-COPY ./microservices/audit-service ./microservices/audit-service
-COPY ./shared ./shared
+# Copy gateway service files
+COPY ./microservices/gateway ./microservices/gateway
 
 # Set environment variables
 ENV NODE_ENV production
-ENV AUDIT_SERVICE_PORT 3011
+ENV PORT 3000
 
-# Expose the service port
-EXPOSE 3011
+# Expose the gateway port
+EXPOSE 3000
 
-# Start the service
-CMD ["node", "microservices/audit-service/src/index.js"]
+# Start the gateway
+CMD ["node", "microservices/gateway/src/index.js"]
