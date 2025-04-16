@@ -1,0 +1,14 @@
+{
+  "name": "smart-health-hub",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
