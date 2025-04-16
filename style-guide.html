@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation Style Guide | Smart Health Hub</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+  <style>
+    .color-sample {
+      width: 100px;
+      height: 100px;
+      border-radius: 0.5rem;
+      display: inline-block;
+      margin-right: 1rem;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <a href="/docs" class="text-blue-600 hover:underline mb-2 inline-block">← Back to Documentation</a>
+        <h1 class="text-3xl font-bold text-blue-600">Documentation Style Guide</h1>
+      </div>
+      <a href="/platform" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Back to Platform Overview</a>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+      <h2 class="text-2xl font-semibold mb-4">Introduction</h2>
+      <p class="text-gray-700 mb-4">
+        This style guide defines the visual standards and design patterns for all Smart Health Hub documentation
+        pages. Following these guidelines ensures a consistent, professional appearance across the platform's
+        documentation, making it easier for users to navigate and understand the content.
+      </p>
+      <p class="text-gray-700">
+        All documentation pages are built using HTML with Tailwind CSS for styling. Code snippets use Highlight.js
+        for syntax highlighting.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-1">
+        <div class="bg-white shadow-md rounded-lg p-6 sticky top-4">
+          <h3 class="text-lg font-semibold mb-4 text-blue-600">Table of Contents</h3>
+          <ul class="space-y-2">
+            <li><a href="#colors" class="text-blue-600 hover:underline">Color Palette</a></li>
+            <li><a href="#typography" class="text-blue-600 hover:underline">Typography</a></li>
+            <li><a href="#layout" class="text-blue-600 hover:underline">Layout & Structure</a></li>
+            <li><a href="#components" class="text-blue-600 hover:underline">Common Components</a></li>
+            <li><a href="#code" class="text-blue-600 hover:underline">Code Formatting</a></li>
+            <li><a href="#tables" class="text-blue-600 hover:underline">Tables</a></li>
+            <li><a href="#headers" class="text-blue-600 hover:underline">Headers & Navigation</a></li>
+            <li><a href="#services" class="text-blue-600 hover:underline">Service-Specific Styles</a></li>
+            <li><a href="#responsive" class="text-blue-600 hover:underline">Responsive Design</a></li>
+            <li><a href="#accessibility" class="text-blue-600 hover:underline">Accessibility</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2">
+        <div id="colors" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Color Palette</h3>
+          <p class="text-gray-700 mb-4">
+            The Smart Health Hub documentation uses a consistent color palette to create a cohesive visual identity.
+            Each service area has its own accent color, while sharing common UI colors.
+          </p>
+          
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Primary Colors</h4>
+          <div class="flex flex-wrap mb-6">
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-blue-600"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Blue</div>
+                <div class="text-gray-600">bg-blue-600</div>
+                <div class="text-gray-600">#2563EB</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-indigo-600"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Indigo</div>
+                <div class="text-gray-600">bg-indigo-600</div>
+                <div class="text-gray-600">#4F46E5</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-emerald-600"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Emerald</div>
+                <div class="text-gray-600">bg-emerald-600</div>
+                <div class="text-gray-600">#059669</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-purple-600"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Purple</div>
+                <div class="text-gray-600">bg-purple-600</div>
+                <div class="text-gray-600">#9333EA</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-red-600"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Red</div>
+                <div class="text-gray-600">bg-red-600</div>
+                <div class="text-gray-600">#DC2626</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-orange-600"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Orange</div>
+                <div class="text-gray-600">bg-orange-600</div>
+                <div class="text-gray-600">#EA580C</div>
+              </div>
+            </div>
+          </div>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">UI Colors</h4>
+          <div class="flex flex-wrap mb-6">
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-gray-50"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Background</div>
+                <div class="text-gray-600">bg-gray-50</div>
+                <div class="text-gray-600">#F9FAFB</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-white"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Card BG</div>
+                <div class="text-gray-600">bg-white</div>
+                <div class="text-gray-600">#FFFFFF</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-gray-700"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Text</div>
+                <div class="text-gray-600">text-gray-700</div>
+                <div class="text-gray-600">#374151</div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center mb-4 mr-4">
+              <div class="color-sample bg-gray-100"></div>
+              <div class="mt-2 text-sm text-center">
+                <div class="font-medium">Code BG</div>
+                <div class="text-gray-600">bg-gray-100</div>
+                <div class="text-gray-600">#F3F4F6</div>
+              </div>
+            </div>
+          </div>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Service-Specific Colors</h4>
+          <table class="min-w-full border-collapse">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="px-4 py-2 text-left border border-gray-300">Service</th>
+                <th class="px-4 py-2 text-left border border-gray-300">Primary Color</th>
+                <th class="px-4 py-2 text-left border border-gray-300">Tailwind Class</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="px-4 py-2 border border-gray-300">FHIR Integration Service</td>
+                <td class="px-4 py-2 border border-gray-300">Blue</td>
+                <td class="px-4 py-2 border border-gray-300"><code>text-blue-600</code> / <code>bg-blue-600</code></td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 border border-gray-300">Security Service</td>
+                <td class="px-4 py-2 border border-gray-300">Indigo</td>
+                <td class="px-4 py-2 border border-gray-300"><code>text-indigo-600</code> / <code>bg-indigo-600</code></td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 border border-gray-300">Database Service</td>
+                <td class="px-4 py-2 border border-gray-300">Emerald</td>
+                <td class="px-4 py-2 border border-gray-300"><code>text-emerald-600</code> / <code>bg-emerald-600</code></td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 border border-gray-300">Webhook Service</td>
+                <td class="px-4 py-2 border border-gray-300">Purple</td>
+                <td class="px-4 py-2 border border-gray-300"><code>text-purple-600</code> / <code>bg-purple-600</code></td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 border border-gray-300">Integration Gateway</td>
+                <td class="px-4 py-2 border border-gray-300">Red</td>
+                <td class="px-4 py-2 border border-gray-300"><code>text-red-600</code> / <code>bg-red-600</code></td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 border border-gray-300">SDK Documentation</td>
+                <td class="px-4 py-2 border border-gray-300">Orange</td>
+                <td class="px-4 py-2 border border-gray-300"><code>text-orange-600</code> / <code>bg-orange-600</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="typography" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Typography</h3>
+          <p class="text-gray-700 mb-4">
+            Typography in the documentation follows a clear hierarchy to help users scan and understand content.
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Headings</h4>
+          <div class="space-y-4 mb-6">
+            <div>
+              <h1 class="text-3xl font-bold text-blue-600">Heading 1 (Page Title)</h1>
+              <p class="text-sm text-gray-600 mt-1">text-3xl font-bold text-[service-color]-600</p>
+            </div>
+            <div>
+              <h2 class="text-2xl font-semibold mb-2">Heading 2 (Section Title)</h2>
+              <p class="text-sm text-gray-600 mt-1">text-2xl font-semibold</p>
+            </div>
+            <div>
+              <h3 class="text-lg font-medium text-blue-600 mb-2">Heading 3 (Subsection Title)</h3>
+              <p class="text-sm text-gray-600 mt-1">text-lg font-medium text-[service-color]-600</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-900 mb-2">Heading 4 (Component Title)</h4>
+              <p class="text-sm text-gray-600 mt-1">font-semibold text-gray-900</p>
+            </div>
+          </div>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Body Text</h4>
+          <div class="space-y-4 mb-6">
+            <div>
+              <p class="text-gray-700 mb-4">This is a standard paragraph with text-gray-700 class. The font size is base (16px) and it has a margin-bottom of 1rem (16px) when followed by another paragraph.</p>
+              <p class="text-sm text-gray-600 mt-1">text-gray-700</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">This is smaller text used for captions, hints, and metadata.</p>
+              <p class="text-sm text-gray-600 mt-1">text-sm text-gray-600</p>
+            </div>
+          </div>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Links</h4>
+          <div class="space-y-2 mb-6">
+            <div>
+              <a href="#" class="text-blue-600 hover:underline">Standard link (text-blue-600 hover:underline)</a>
+            </div>
+            <div>
+              <a href="#" class="inline-block mt-2 text-blue-600 hover:underline">Link with right arrow → (text-blue-600 hover:underline)</a>
+            </div>
+            <div>
+              <a href="#" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Button link (bg-blue-500 hover:bg-blue-600 text-white)</a>
+            </div>
+          </div>
+        </div>
+
+        <div id="layout" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Layout & Structure</h3>
+          <p class="text-gray-700 mb-4">
+            All documentation pages follow a consistent layout pattern for ease of navigation and readability.
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Page Structure</h4>
+          <div class="space-y-4 mb-6">
+            <div class="border border-gray-300 rounded-md p-4">
+              <div class="bg-gray-200 p-2 mb-2 rounded">Header: Page title, back links, and navigation</div>
+              <div class="bg-gray-200 p-2 mb-2 rounded">Introduction: Brief overview of the service or topic</div>
+              <div class="flex flex-col md:flex-row md:space-x-4">
+                <div class="bg-gray-200 p-2 mb-2 md:mb-0 rounded md:w-1/4">Sidebar: Table of contents</div>
+                <div class="bg-gray-200 p-2 rounded md:w-3/4">Main content: Detailed information divided into sections</div>
+              </div>
+            </div>
+          </div>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Grid System</h4>
+          <p class="text-gray-700 mb-4">
+            The documentation uses Tailwind's grid system for responsive layouts:
+          </p>
+          <ul class="list-disc ml-6 space-y-1 text-gray-700 mb-6">
+            <li>Main layout: <code>grid grid-cols-1 lg:grid-cols-4 gap-8</code></li>
+            <li>Sidebar: <code>lg:col-span-1</code></li>
+            <li>Main content: <code>lg:col-span-3</code></li>
+            <li>Card grids: <code>grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6</code></li>
+          </ul>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Spacing</h4>
+          <ul class="list-disc ml-6 space-y-1 text-gray-700">
+            <li>Section spacing: <code>mb-8</code> (margin-bottom: 2rem)</li>
+            <li>Title spacing: <code>mb-4</code> (margin-bottom: 1rem)</li>
+            <li>Paragraph spacing: <code>mb-4</code> (margin-bottom: 1rem)</li>
+            <li>List item spacing: <code>space-y-2</code> (gap: 0.5rem)</li>
+            <li>Card padding: <code>p-6</code> (padding: 1.5rem)</li>
+          </ul>
+        </div>
+
+        <div id="components" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Common Components</h3>
+          <p class="text-gray-700 mb-4">
+            The documentation uses these standard components across all pages:
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Cards</h4>
+          <div class="bg-white shadow-md rounded-lg p-6 border border-gray-200 mb-6">
+            <h4 class="font-semibold text-gray-900 mb-2">Card Title</h4>
+            <p class="text-gray-700">This is a standard card component used to group related content.</p>
+          </div>
+          <pre><code class="language-html">&lt;div class="bg-white shadow-md rounded-lg p-6"&gt;
+  &lt;h4 class="font-semibold text-gray-900 mb-2"&gt;Card Title&lt;/h4&gt;
+  &lt;p class="text-gray-700"&gt;Card content goes here...&lt;/p&gt;
+&lt;/div&gt;</code></pre>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-6">Notes and Callouts</h4>
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                  This is a note callout for important information that needs to stand out.
+                </p>
+              </div>
+            </div>
+          </div>
+          <pre><code class="language-html">&lt;div class="bg-blue-50 border-l-4 border-blue-500 p-4"&gt;
+  &lt;div class="flex"&gt;
+    &lt;div class="flex-shrink-0"&gt;
+      &lt;svg class="h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"&gt;
+        &lt;path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /&gt;
+      &lt;/svg&gt;
+    &lt;/div&gt;
+    &lt;div class="ml-3"&gt;
+      &lt;p class="text-sm text-blue-700"&gt;
+        Note content goes here...
+      &lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-6">Code Blocks</h4>
+          <p class="text-gray-700 mb-4">
+            For inline code, use: <code class="bg-gray-100 px-1 rounded">code element with bg-gray-100 px-1 rounded</code>
+          </p>
+          <p class="text-gray-700 mb-4">
+            For code blocks, use pre and code elements with Highlight.js classes:
+          </p>
+          <pre><code class="language-javascript">// Example JavaScript code block
+function exampleFunction() {
+  return "This is an example";
+}</code></pre>
+        </div>
+
+        <div id="code" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Code Formatting</h3>
+          <p class="text-gray-700 mb-4">
+            Code examples are crucial in technical documentation. Follow these guidelines for consistent code formatting:
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Syntax Highlighting</h4>
+          <p class="text-gray-700 mb-4">
+            Use Highlight.js for syntax highlighting. Specify the language in the class of the code element:
+          </p>
+          <pre><code class="language-html">&lt;pre&gt;&lt;code class="language-javascript"&gt;
+// Your JavaScript code here
+&lt;/code&gt;&lt;/pre&gt;</code></pre>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-4">Supported Languages</h4>
+          <p class="text-gray-700 mb-4">
+            Common languages used in documentation:
+          </p>
+          <ul class="list-disc ml-6 space-y-1 text-gray-700">
+            <li><code>language-javascript</code> - For JavaScript/TypeScript code</li>
+            <li><code>language-java</code> - For Java code</li>
+            <li><code>language-python</code> - For Python code</li>
+            <li><code>language-html</code> - For HTML markup</li>
+            <li><code>language-css</code> - For CSS styles</li>
+            <li><code>language-json</code> - For JSON data</li>
+            <li><code>language-sql</code> - For SQL queries</li>
+            <li><code>language-bash</code> - For bash/shell commands</li>
+            <li><code>language-http</code> - For HTTP requests/responses</li>
+          </ul>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-4">Best Practices</h4>
+          <ul class="list-disc ml-6 space-y-1 text-gray-700">
+            <li>Keep code examples concise and focused on the specific concept</li>
+            <li>Include comments to explain complex or non-obvious parts</li>
+            <li>Use consistent spacing and indentation (2 spaces for most languages)</li>
+            <li>For command-line instructions, show the output when relevant</li>
+            <li>For HTTP requests, include both the request and response</li>
+          </ul>
+        </div>
+
+        <div id="tables" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Tables</h3>
+          <p class="text-gray-700 mb-4">
+            Tables are used to present structured data in a clear format:
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Standard Table</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="min-w-full border-collapse">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="px-4 py-2 text-left border border-gray-300">Header 1</th>
+                  <th class="px-4 py-2 text-left border border-gray-300">Header 2</th>
+                  <th class="px-4 py-2 text-left border border-gray-300">Header 3</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-4 py-2 border border-gray-300">Cell 1-1</td>
+                  <td class="px-4 py-2 border border-gray-300">Cell 1-2</td>
+                  <td class="px-4 py-2 border border-gray-300">Cell 1-3</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2 border border-gray-300">Cell 2-1</td>
+                  <td class="px-4 py-2 border border-gray-300">Cell 2-2</td>
+                  <td class="px-4 py-2 border border-gray-300">Cell 2-3</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <pre><code class="language-html">&lt;div class="overflow-x-auto"&gt;
+  &lt;table class="min-w-full border-collapse"&gt;
+    &lt;thead&gt;
+      &lt;tr class="bg-gray-100"&gt;
+        &lt;th class="px-4 py-2 text-left border border-gray-300"&gt;Header 1&lt;/th&gt;
+        &lt;th class="px-4 py-2 text-left border border-gray-300"&gt;Header 2&lt;/th&gt;
+        &lt;th class="px-4 py-2 text-left border border-gray-300"&gt;Header 3&lt;/th&gt;
+      &lt;/tr&gt;
+    &lt;/thead&gt;
+    &lt;tbody&gt;
+      &lt;tr&gt;
+        &lt;td class="px-4 py-2 border border-gray-300"&gt;Cell 1-1&lt;/td&gt;
+        &lt;td class="px-4 py-2 border border-gray-300"&gt;Cell 1-2&lt;/td&gt;
+        &lt;td class="px-4 py-2 border border-gray-300"&gt;Cell 1-3&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class="px-4 py-2 border border-gray-300"&gt;Cell 2-1&lt;/td&gt;
+        &lt;td class="px-4 py-2 border border-gray-300"&gt;Cell 2-2&lt;/td&gt;
+        &lt;td class="px-4 py-2 border border-gray-300"&gt;Cell 2-3&lt;/td&gt;
+      &lt;/tr&gt;
+    &lt;/tbody&gt;
+  &lt;/table&gt;
+&lt;/div&gt;</code></pre>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-6">Table Guidelines</h4>
+          <ul class="list-disc ml-6 space-y-1 text-gray-700">
+            <li>Always wrap tables in an <code>overflow-x-auto</code> div to ensure they're responsive</li>
+            <li>Use <code>bg-gray-100</code> for table headers</li>
+            <li>Use consistent padding and borders</li>
+            <li>For complex tables with long content, consider using alternating row colors with <code>even:bg-gray-50</code></li>
+          </ul>
+        </div>
+
+        <div id="headers" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Headers & Navigation</h3>
+          <p class="text-gray-700 mb-4">
+            Consistent headers and navigation help users orient themselves within the documentation:
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Page Header</h4>
+          <div class="border border-gray-300 rounded-md p-4 mb-6">
+            <div class="flex justify-between items-center">
+              <div>
+                <a href="#" class="text-blue-600 hover:underline mb-2 inline-block">← Back to Documentation</a>
+                <h1 class="text-3xl font-bold text-blue-600">Page Title</h1>
+              </div>
+              <a href="#" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Back to Platform Overview</a>
+            </div>
+          </div>
+
+          <pre><code class="language-html">&lt;div class="flex justify-between items-center mb-8"&gt;
+  &lt;div&gt;
+    &lt;a href="/docs" class="text-blue-600 hover:underline mb-2 inline-block"&gt;← Back to Documentation&lt;/a&gt;
+    &lt;h1 class="text-3xl font-bold text-blue-600"&gt;Page Title&lt;/h1&gt;
+  &lt;/div&gt;
+  &lt;a href="/platform" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"&gt;Back to Platform Overview&lt;/a&gt;
+&lt;/div&gt;</code></pre>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-6">Table of Contents</h4>
+          <div class="border border-gray-300 rounded-md p-4 mb-6">
+            <div class="bg-white p-6">
+              <h3 class="text-lg font-semibold mb-4 text-blue-600">Table of Contents</h3>
+              <ul class="space-y-2">
+                <li><a href="#" class="text-blue-600 hover:underline">Section One</a></li>
+                <li><a href="#" class="text-blue-600 hover:underline">Section Two</a></li>
+                <li><a href="#" class="text-blue-600 hover:underline">Section Three</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <pre><code class="language-html">&lt;div class="bg-white shadow-md rounded-lg p-6 sticky top-4"&gt;
+  &lt;h3 class="text-lg font-semibold mb-4 text-blue-600"&gt;Table of Contents&lt;/h3&gt;
+  &lt;ul class="space-y-2"&gt;
+    &lt;li&gt;&lt;a href="#section-one" class="text-blue-600 hover:underline"&gt;Section One&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href="#section-two" class="text-blue-600 hover:underline"&gt;Section Two&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href="#section-three" class="text-blue-600 hover:underline"&gt;Section Three&lt;/a&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;</code></pre>
+        </div>
+
+        <div id="services" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Service-Specific Styles</h3>
+          <p class="text-gray-700 mb-4">
+            Each service has a unique primary color for its documentation, as shown in the color palette section.
+            When creating service-specific pages:
+          </p>
+
+          <ul class="list-disc ml-6 space-y-2 text-gray-700">
+            <li>Use the service's primary color for the page title: <code>text-[service-color]-600</code></li>
+            <li>Use the service's primary color for section headings: <code>text-[service-color]-600</code></li>
+            <li>Use the service's primary color for the header background in cards: <code>bg-[service-color]-600</code></li>
+            <li>Keep all other styles consistent with the general documentation</li>
+          </ul>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-4">Example: FHIR Service Header</h4>
+          <div class="bg-blue-600 p-4 text-white rounded-t-lg">
+            <h3 class="text-xl font-semibold">FHIR Resource Types</h3>
+          </div>
+          <div class="border-l border-r border-b border-gray-300 p-4 rounded-b-lg">
+            <p class="text-gray-700">Content about FHIR resources...</p>
+          </div>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-6">Example: Security Service Header</h4>
+          <div class="bg-indigo-600 p-4 text-white rounded-t-lg">
+            <h3 class="text-xl font-semibold">Authentication Flow</h3>
+          </div>
+          <div class="border-l border-r border-b border-gray-300 p-4 rounded-b-lg">
+            <p class="text-gray-700">Content about authentication flows...</p>
+          </div>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-6">Example: Database Service Header</h4>
+          <div class="bg-emerald-600 p-4 text-white rounded-t-lg">
+            <h3 class="text-xl font-semibold">Sharding Strategy</h3>
+          </div>
+          <div class="border-l border-r border-b border-gray-300 p-4 rounded-b-lg">
+            <p class="text-gray-700">Content about database sharding...</p>
+          </div>
+        </div>
+
+        <div id="responsive" class="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h3 class="text-2xl font-semibold mb-4">Responsive Design</h3>
+          <p class="text-gray-700 mb-4">
+            All documentation pages should be responsive, working well on mobile, tablet, and desktop devices:
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Responsive Guidelines</h4>
+          <ul class="list-disc ml-6 space-y-2 text-gray-700">
+            <li>Use Tailwind's responsive prefixes (<code>sm:</code>, <code>md:</code>, <code>lg:</code>) for different screen sizes</li>
+            <li>On mobile, use single-column layouts</li>
+            <li>On desktop, use multi-column layouts with sidebar navigation</li>
+            <li>Ensure tables are wrapped in <code>overflow-x-auto</code> for horizontal scrolling on small screens</li>
+            <li>Use appropriate font sizes that are readable on all devices</li>
+            <li>Ensure touch targets are large enough (minimum 44px) for mobile users</li>
+          </ul>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-4">Responsive Component Example</h4>
+          <pre><code class="language-html">&lt;!-- This will be a single column on mobile and 2 columns on md screens and above --&gt;
+&lt;div class="grid grid-cols-1 md:grid-cols-2 gap-6"&gt;
+  &lt;div class="bg-white shadow-md rounded-lg p-6"&gt;
+    &lt;h3 class="text-lg font-medium"&gt;Column 1&lt;/h3&gt;
+    &lt;p class="text-gray-700"&gt;Content for column 1...&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="bg-white shadow-md rounded-lg p-6"&gt;
+    &lt;h3 class="text-lg font-medium"&gt;Column 2&lt;/h3&gt;
+    &lt;p class="text-gray-700"&gt;Content for column 2...&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+        </div>
+
+        <div id="accessibility" class="bg-white shadow-md rounded-lg p-6">
+          <h3 class="text-2xl font-semibold mb-4">Accessibility</h3>
+          <p class="text-gray-700 mb-4">
+            Ensure documentation is accessible to all users, including those with disabilities:
+          </p>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2">Accessibility Guidelines</h4>
+          <ul class="list-disc ml-6 space-y-2 text-gray-700">
+            <li>Use semantic HTML elements (<code>h1</code>, <code>h2</code>, <code>ul</code>, etc.) appropriately</li>
+            <li>Maintain sufficient color contrast between text and background (WCAG AA compliance)</li>
+            <li>Include alternate text for all images and diagrams</li>
+            <li>Ensure keyboard navigability for all interactive elements</li>
+            <li>Use ARIA attributes where appropriate for complex interactive components</li>
+            <li>Provide descriptive text for links (avoid "click here")</li>
+            <li>Use tables appropriately with headers and proper structure</li>
+          </ul>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-4">Accessible Link Example</h4>
+          <pre><code class="language-html">&lt;!-- Good: Descriptive link text --&gt;
+&lt;a href="/docs/fhir-service" class="text-blue-600 hover:underline"&gt;
+  View FHIR Service Documentation
+&lt;/a&gt;
+
+&lt;!-- Bad: Non-descriptive link text --&gt;
+&lt;a href="/docs/fhir-service" class="text-blue-600 hover:underline"&gt;
+  Click here
+&lt;/a&gt;</code></pre>
+
+          <h4 class="text-lg font-medium text-blue-600 mb-2 mt-4">Accessible Image Example</h4>
+          <pre><code class="language-html">&lt;img 
+  src="/images/fhir-data-flow.png" 
+  alt="FHIR data flow diagram showing how patient data moves between systems" 
+  class="max-w-full h-auto"
+/&gt;</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
