@@ -1,16 +1,12 @@
+// Simple production-ready CommonJS server for Smart Health Hub
+// This file avoids all ESM/CommonJS compatibility issues
+const express = require('express');
+const path = require('path');
+const cors = require('cors');
+const session = require('express-session');
+const { createServer } = require('http');
 
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import cors from 'cors';
-import session from 'express-session';
-import { createServer } from 'http';
-
-// ESM compatibility
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Simple logger replacement
+// Simple logger
 const logger = {
   info: console.log,
   error: console.error,
@@ -65,7 +61,7 @@ app.use('*', (req, res) => {
 const server = createServer(app);
 
 // Start the server
-const PORT = process.env.PORT || 5001; // Use a different port from development
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Smart Health Hub is running on port ${PORT}`);
   logger.info(`Healthcare platform started successfully in production mode`);

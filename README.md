@@ -1,17 +1,30 @@
+# Smart Health Hub
 
-# Smart Health Hub - Standalone Production Build
+## Deployment Instructions
 
-This is a standalone production build of the Smart Health Hub healthcare platform.
+1. Upload all files in this folder to your server
+2. Run the following commands:
 
-## Running the Application
+```bash
+# Install dependencies
+npm install --omit=dev
 
-1. Make sure Node.js 16 or higher is installed
-2. Run `npm install` to install dependencies
-3. Run `npm start` to start the server
-4. Access the application at http://localhost:3000
+# Start the server
+NODE_ENV=production npm start
+```
 
-## Environment Variables
+Or simply run the startup script:
 
-- PORT: Set a custom port (default: 3000)
-- NODE_ENV: Set to "production" for production mode
-  
+```bash
+./start.sh
+```
+
+The server will start on port 3000 by default.
+You can customize the port by setting the PORT environment variable.
+
+## Features
+
+- Comprehensive healthcare interoperability platform
+- FHIR R4 compatible
+- Advanced security features
+- Specialized portals for different stakeholders
